@@ -55,10 +55,10 @@
                                 @foreach($endpoint->headers as $header => $value)
                                     @component('scribe::themes.elements.components.field-details', [
                                       'name' => $header,
-                                      'type' => null,
-                                      'required' => false,
-                                      'description' => null,
-                                      'example' => $value,
+                                      'type' => data_get($value, 'type'),
+                                      'required' => data_get($value, 'required', false),
+                                      'description' => data_get($value, 'description'),
+                                      'example' => data_get($value, 'example', $value),
                                       'endpointId' => $endpoint->endpointId(),
                                       'component' => 'header',
                                       'isInput' => true,

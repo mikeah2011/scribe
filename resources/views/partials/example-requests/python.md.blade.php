@@ -32,7 +32,7 @@ params = {!! u::printQueryParamsAsKeyValue($endpoint->cleanQueryParameters, "'",
 @if(!empty($endpoint->headers))
 headers = {
 @foreach($endpoint->headers as $header => $value)
-  '{{$header}}': '{{$value}}'@if(!($loop->last)),
+  '{{$header}}': '{{data_get($value, 'example', $value)}}'@if(!($loop->last)),
 @endif
 @endforeach
 
