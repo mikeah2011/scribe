@@ -249,6 +249,8 @@ class OpenAPISpecWriter
                 $contentType = 'application/json';
             }
 
+            $contentType = data_get($contentType, 'example', $contentType);
+
             $body['content'][$contentType]['schema'] = $schema;
 
         }

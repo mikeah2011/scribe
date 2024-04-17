@@ -319,6 +319,9 @@ class OutputEndpointData extends BaseDTO
             return false;
 
         $contentType = data_get($this->headers, "Content-Type", data_get($this->headers, "content-type", ""));
+
+        $contentType = data_get($contentType, 'example', $contentType);
+
         return str_contains($contentType, "json");
     }
 
