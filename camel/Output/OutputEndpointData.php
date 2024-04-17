@@ -116,6 +116,7 @@ class OutputEndpointData extends BaseDTO
         if (count($files)) {
             $this->headers['Content-Type'] = 'multipart/form-data';
         }
+        ksort($this->headers);
         $this->fileParameters = $files;
         $this->cleanBodyParameters = $regularParameters;
     }

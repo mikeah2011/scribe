@@ -2,6 +2,9 @@
     $hasChildren ??= false;
     $isArrayBody = $name == "[]";
     $expandable = $hasChildren && !$isArrayBody;
+    if (isset($enumValues) && is_string($enumValues) && Str::contains($enumValues, ',')) {
+        $enumValues = explode(',', $enumValues);
+    }
 @endphp
 
 <div class="sl-flex sl-relative sl-max-w-full sl-py-2 sl-pl-3">
