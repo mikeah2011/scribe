@@ -62,6 +62,7 @@
                                       'endpointId' => $endpoint->endpointId(),
                                       'component' => 'header',
                                       'isInput' => true,
+                                      'enumValues' => data_get($value, 'enum'),
                                     ])
                                     @endcomponent
                                 @endforeach
