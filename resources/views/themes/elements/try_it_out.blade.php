@@ -41,6 +41,7 @@
                                            data-prefix="{{ $metadata['auth']['prefix'] }}"
                                            name="{{ $metadata['auth']['name'] }}"
                                            placeholder="{{ $metadata['auth']['placeholder'] }}"
+                                           value="{{ $metadata['auth']['use_value'] }}"
                                            class="auth-value sl-relative {{ $metadata['auth']['prefix'] ? 'sl-w-3/5' : 'sl-w-full sl-pr-2.5 sl-pl-2.5' }} sl-h-md sl-text-base sl-rounded sl-border-transparent hover:sl-border-input focus:sl-border-primary sl-border">
                                 </div>
                             </div>
