@@ -72,6 +72,9 @@
                             @foreach($endpoint->headers as $name => $example)
                                 @php
                                     if($endpoint->isAuthed() && $metadata['auth']['location'] === 'header' && $name === $metadata['auth']['name']) continue;
+                                    $description = data_get($example, 'description', '');
+                                    $example = data_get($example, 'example', $example);
+                                    $example = is_bool($example) ? var_export($example, true) : $example;
                                 @endphp
                                 <label aria-hidden="true"
                                        for="header-{{ $endpoint->endpointId() }}-{{ $name }}">{{ $name }}</label>
@@ -80,7 +83,8 @@
                                     <div class="sl-input sl-flex-1 sl-relative">
                                         <input aria-label="{{ $name }}" name="{{ $name }}"
                                                id="header-{{ $endpoint->endpointId() }}-{{ $name }}"
-                                               value="{{ data_get($example, 'example', $example) }}" data-component="header"
+                                               placeholder="{{ $description ?? ''}}"
+                                               value="{{ $example }}" data-component="header"
                                                class="sl-relative sl-w-full sl-h-md sl-text-base sl-pr-2.5 sl-pl-2.5 sl-rounded sl-border-transparent hover:sl-border-input focus:sl-border-primary sl-border">
                                     </div>
                                 </div>
