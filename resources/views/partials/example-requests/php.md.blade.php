@@ -1,6 +1,10 @@
 @php
     use Knuckles\Scribe\Tools\WritingUtils as u;
     /** @var  Knuckles\Camel\Output\OutputEndpointData $endpoint */
+    $endpoint->_headers = [];
+foreach ($endpoint->headers as $key => $header) {
+    $endpoint->_headers[$key] = data_get($header, 'example', $header);
+}
 @endphp
 ```php
 $client = new \GuzzleHttp\Client();
@@ -9,8 +13,8 @@ $url = '{!! rtrim($baseUrl, '/') . '/' . ltrim($endpoint->boundUri, '/') !!}';
 $response = $client->{{ strtolower($endpoint->httpMethods[0]) }}(
     $url,
     [
-@if(!empty($endpoint->headers))
-        'headers' => {!! u::printPhpValue($endpoint->headers, 8) !!},
+@if(!empty($endpoint->_headers ?? []))
+        'headers' => {!! u::printPhpValue($endpoint->_headers, 8) !!},
 @endif
 @if(!empty($endpoint->cleanQueryParameters))
         'query' => {!! u::printQueryParamsAsKeyValue($endpoint->cleanQueryParameters, "'", " =>", 12, "[]", 8) !!},

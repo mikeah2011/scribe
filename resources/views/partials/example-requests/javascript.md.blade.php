@@ -16,7 +16,7 @@ Object.keys(params)
 @if(!empty($endpoint->headers))
 const headers = {
 @foreach($endpoint->headers as $header => $value)
-    "{{$header}}": "{{$value}}",
+    "{{$header}}": "{{data_get($value, 'example', $value)}}",
 @endforeach
 @empty($endpoint->headers['Accept'])
     "Accept": "application/json",

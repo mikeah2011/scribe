@@ -86,7 +86,7 @@
         </div>
 
         <div class="sl-flex sl-items-center sl-px-4 sl-py-3 sl-border-t">
-            <a href="http://github.com/knuckleswtf/scribe">Documentation powered by Scribe ✍</a>
+            <a href="https://github.com/kkday-it/kkday-affiliate-service">KKday Affiliate Service Repository</a>
         </div>
     </div>
 </div>

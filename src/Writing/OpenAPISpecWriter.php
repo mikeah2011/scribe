@@ -185,11 +185,12 @@ class OpenAPISpecWriter
                 $parameters[] = [
                     'in' => 'header',
                     'name' => $name,
-                    'description' => '',
-                    'example' => $value,
+                    'description' => data_get($value, 'description', ''),
+                    'example' => data_get($value, 'example', $value),
                     'schema' => [
-                        'type' => 'string',
+                        'type' => data_get($value, 'type', 'string'),
                     ],
+                    'required' => data_get($value, 'required', false),
                 ];
             }
         }
@@ -247,6 +248,8 @@ class OpenAPISpecWriter
             } else {
                 $contentType = 'application/json';
             }
+
+            $contentType = data_get($contentType, 'example', $contentType);
 
             $body['content'][$contentType]['schema'] = $schema;
 

@@ -255,7 +255,7 @@ class PostmanCollectionWriter
                 $value = str_replace('@{{', '{{', $value);
                 return [
                     'key' => $header,
-                    'value' => $value,
+                    'value' => data_get($value, 'example', $value),
                 ];
             })
             ->values()

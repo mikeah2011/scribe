@@ -116,6 +116,10 @@ class OutputEndpointData extends BaseDTO
         if (count($files)) {
             $this->headers['Content-Type'] = 'multipart/form-data';
         }
+
+        $contentType = Arr::pull($this->headers, 'Content-Type');
+        $this->headers = Arr::prepend($this->headers, $contentType, 'Content-Type');
+
         $this->fileParameters = $files;
         $this->cleanBodyParameters = $regularParameters;
     }
@@ -319,6 +323,9 @@ class OutputEndpointData extends BaseDTO
             return false;
 
         $contentType = data_get($this->headers, "Content-Type", data_get($this->headers, "content-type", ""));
+
+        $contentType = data_get($contentType, 'example', $contentType);
+
         return str_contains($contentType, "json");
     }
 

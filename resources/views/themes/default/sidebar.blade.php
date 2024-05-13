@@ -60,7 +60,7 @@
         @if($metadata['openapi_spec_url'])
             <li style="padding-bottom: 5px;"><a href="{!! $metadata['openapi_spec_url'] !!}">{!! u::trans("scribe::links.openapi") !!}</a></li>
         @endif
-        <li><a href="http://github.com/knuckleswtf/scribe">Documentation powered by Scribe ✍</a></li>
+        <li><a href="https://github.com/kkday-it/kkday-affiliate-service">KKday Affiliate Service Repository</a></li>
     </ul>
 
     <ul class="toc-footer" id="last-updated">
