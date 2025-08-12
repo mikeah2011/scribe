@@ -6,6 +6,7 @@ use Knuckles\Camel\Extraction\ExtractedEndpointData;
 use Knuckles\Scribe\Extracting\MethodAstParser;
 use Knuckles\Scribe\Extracting\ParsesValidationRules;
 use Knuckles\Scribe\Extracting\Shared\ValidationRulesFinders\RequestValidate;
+use Knuckles\Scribe\Extracting\Shared\ValidationRulesFinders\RequestValidateFacade;
 use Knuckles\Scribe\Extracting\Shared\ValidationRulesFinders\ThisValidate;
 use Knuckles\Scribe\Extracting\Shared\ValidationRulesFinders\ValidatorMake;
 use PhpParser\Node;
@@ -83,12 +84,11 @@ class GetFromInlineValidatorBase extends Strategy
                     }
                     // Try to extract Enum rule
                     else if (
-                        function_exists('enum_exists') &&
                         ($enum = $this->extractEnumClassFromArrayItem($arrayItem)) &&
                         enum_exists($enum) && method_exists($enum, 'tryFrom')
                     ) {
                         // $case->value only exists on BackedEnums, not UnitEnums
-                        // method_exists($enum, 'tryFrom') implies $enum instanceof BackedEnum
+                        // method_exists($enum, 'tryFrom') implies the enum is a BackedEnum
                         // @phpstan-ignore-next-line
                         $rulesList[] = 'in:' . implode(',', array_map(fn ($case) => $case->value, $enum::cases()));
                     }
@@ -175,6 +175,7 @@ class GetFromInlineValidatorBase extends Strategy
     {
         $strategies = [
             RequestValidate::class, // $request->validate(...);
+            RequestValidateFacade::class, // Request::validate(...);
             ValidatorMake::class, // Validator::make($request, ...)
             ThisValidate::class, // $this->validate(...);
         ];

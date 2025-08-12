@@ -894,6 +894,11 @@ html {
     text-shadow: 0 1px 2px rgba(0, 0, 0, .4)
 }
 
+.content blockquote pre.sf-dump,
+.content pre pre.sf-dump {
+    width: 100%;
+}
+
 .content .annotation {
     background-color: #292929;
     color: #fff;
@@ -1030,6 +1035,10 @@ html {
 
 .badge.badge-green {
     background-color: green;
+}
+
+.badge.badge-darkgoldenrod {
+    background-color: darkgoldenrod;
 }
 
 .badge.badge-darkgreen {

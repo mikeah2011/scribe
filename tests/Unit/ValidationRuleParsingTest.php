@@ -3,6 +3,7 @@
 namespace Knuckles\Scribe\Tests\Unit;
 
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Rule;
@@ -12,7 +13,6 @@ use Knuckles\Scribe\Tests\BaseLaravelTest;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Tests\Fixtures;
 
-$invokableRulesSupported = interface_exists(\Illuminate\Contracts\Validation\InvokableRule::class);
 $laravel10Rules = version_compare(Application::VERSION, '10.0', '>=');
 
 class ValidationRuleParsingTest extends BaseLaravelTest
@@ -40,6 +40,11 @@ class ValidationRuleParsingTest extends BaseLaravelTest
      */
     public function can_parse_supported_rules(array $ruleset, array $customInfo, array $expected)
     {
+        // Needed for `exists` rule
+        Schema::create('users', function ($table) {
+            $table->id();
+        });
+
         $results = $this->strategy->parse($ruleset, $customInfo);
 
         $parameterName = array_keys($ruleset)[0];
@@ -49,7 +54,9 @@ class ValidationRuleParsingTest extends BaseLaravelTest
             $this->assertEquals($expected['type'], $results[$parameterName]['type']);
         }
 
-        // Validate that the generated values actually pass validation
+        // Validate that the generated values actually pass validation (for rules where we can generate some data)
+        if (is_string($ruleset[$parameterName]) && str_contains($ruleset[$parameterName], "exists")) return;
+
         $exampleData = [$parameterName => $results[$parameterName]['example']];
         $validator = Validator::make($exampleData, $ruleset);
         try {
@@ -66,14 +73,13 @@ class ValidationRuleParsingTest extends BaseLaravelTest
     public function can_parse_rule_objects()
     {
         $results = $this->strategy->parse([
-            'in_param' => ['numeric', Rule::in([3,5,6])]
+            'in_param' => ['numeric', Rule::in([3, 5, 6])]
         ]);
         $this->assertEquals(
             [3, 5, 6],
             $results['in_param']['enumValues']
         );
     }
-
 
     /** @test */
     public function can_transform_arrays_and_objects()
@@ -240,9 +246,9 @@ class ValidationRuleParsingTest extends BaseLaravelTest
             ['in_param' => 'in:3,5,6'],
             ['in_param' => ['description' => $description]],
             [
-                'description' => $description.".",
+                'description' => $description . ".",
                 'type' => 'string',
-                'enumValues' => [3,5,6]
+                'enumValues' => [3, 5, 6]
             ],
         ];
         yield 'not_in' => [
@@ -396,6 +402,11 @@ class ValidationRuleParsingTest extends BaseLaravelTest
             [],
             ['description' => "Must be a file. Must not be greater than 6 kilobytes."],
         ];
+        yield 'max (untyped)' => [
+            ['max_param' => 'max:6'],
+            [],
+            ['description' => "Must not be greater than 6 characters."],
+        ];
         yield 'min (number)' => [
             ['min_param' => 'numeric|min:6'],
             [],
@@ -439,21 +450,26 @@ class ValidationRuleParsingTest extends BaseLaravelTest
                 'description' => 'Must be accepted.',
             ],
         ];
+        yield 'exists' => [
+            ['exists_param' => 'exists:users,id'],
+            [],
+            [
+                'description' => 'The <code>id</code> of an existing record in the users table.',
+            ],
+        ];
         yield 'unsupported' => [
             ['unsupported_param' => [new DummyValidationRule, 'bail']],
             ['unsupported_param' => ['description' => $description]],
             ['description' => "$description."],
         ];
-        if (version_compare(Application::VERSION, '8.53', '>=')) {
-            yield 'accepted_if' => [
-                ['accepted_if_param' => 'accepted_if:another_field,a_value'],
-                [],
-                [
-                    'type' => 'boolean',
-                    'description' => "Must be accepted when <code>another_field</code> is <code>a_value</code>.",
-                ],
-            ];
-        }
+        yield 'accepted_if' => [
+            ['accepted_if_param' => 'accepted_if:another_field,a_value'],
+            [],
+            [
+                'type' => 'boolean',
+                'description' => "Must be accepted when <code>another_field</code> is <code>a_value</code>.",
+            ],
+        ];
     }
 
     /** @test */
@@ -518,10 +534,7 @@ class ValidationRuleParsingTest extends BaseLaravelTest
             'param1' => ['bail', 'required', new DummyWithDocsValidationRule],
         ];
 
-        global $invokableRulesSupported;
-        if ($invokableRulesSupported) {
-            $ruleset['param2'] = [new DummyInvokableValidationRule];
-        }
+        $ruleset['param2'] = [new DummyInvokableValidationRule];
         global $laravel10Rules;
         if ($laravel10Rules) {
             $ruleset['param3'] = [new DummyL10ValidationRule];
@@ -530,23 +543,17 @@ class ValidationRuleParsingTest extends BaseLaravelTest
         $results = $this->strategy->parse($ruleset);
         $this->assertEquals(true, $results['param1']['required']);
         $this->assertEquals('This is a dummy test rule.', $results['param1']['description']);
-        if (isset($results['param2'])) $this->assertEquals('This rule is invokable.', $results['param2']['description']);
-       if (isset($results['param3'])) $this->assertEquals('This is a custom rule.', $results['param3']['description']);
+        $this->assertEquals('This rule is invokable.', $results['param2']['description']);
+        if (isset($results['param3'])) $this->assertEquals('This is a custom rule.', $results['param3']['description']);
     }
 
     /** @test */
     public function can_parse_enum_rules()
     {
-        if (phpversion() < 8.1) {
-            $this->markTestSkipped('Enums are only supported in PHP 8.1 or later');
-        }
-
         $results = $this->strategy->parse([
             'enum' => [
                 'required',
-                new \Illuminate\Validation\Rules\Enum(Fixtures\TestStringBackedEnum::class),
-                // Not supported in Laravel 8
-                // Rule::enum(Fixtures\TestStringBackedEnum::class)
+                Rule::enum(Fixtures\TestStringBackedEnum::class)
             ],
         ]);
         $this->assertEquals('string', $results['enum']['type']);
@@ -556,7 +563,7 @@ class ValidationRuleParsingTest extends BaseLaravelTest
         );
         $this->assertTrue(in_array(
             $results['enum']['example'],
-            array_map(fn ($case) => $case->value, Fixtures\TestStringBackedEnum::cases())
+            array_map(fn($case) => $case->value, Fixtures\TestStringBackedEnum::cases())
         ));
 
 
@@ -575,7 +582,7 @@ class ValidationRuleParsingTest extends BaseLaravelTest
         );
         $this->assertTrue(in_array(
             $results['enum']['example'],
-            array_map(fn ($case) => $case->value, Fixtures\TestIntegerBackedEnum::cases())
+            array_map(fn($case) => $case->value, Fixtures\TestIntegerBackedEnum::cases())
         ));
 
         $results = $this->strategy->parse([
@@ -595,7 +602,7 @@ class ValidationRuleParsingTest extends BaseLaravelTest
         );
         $this->assertTrue(in_array(
             $results['enum']['example'],
-            array_map(fn ($case) => $case->value, Fixtures\TestStringBackedEnum::cases())
+            array_map(fn($case) => $case->value, Fixtures\TestStringBackedEnum::cases())
         ));
     }
 
@@ -623,6 +630,73 @@ class ValidationRuleParsingTest extends BaseLaravelTest
 
         $this->assertEquals('successfully translated by concatenated string.', $results['nested']['description']);
 
+    }
+
+    /** @test */
+    public function can_parse_nullable_rules()
+    {
+        $ruleset = [
+            'nullable_param' => 'nullable|string',
+        ];
+
+        $results = $this->strategy->parse($ruleset);
+
+        $this->assertTrue($results['nullable_param']['nullable']);
+
+        $ruleset = [
+            'nullable_param' => 'string',
+        ];
+
+        $results = $this->strategy->parse($ruleset);
+
+        $this->assertFalse($results['nullable_param']['nullable']);
+
+        $ruleset = [
+            'required_param' => 'required|nullable|string',
+        ];
+
+        $results = $this->strategy->parse($ruleset);
+
+        $this->assertFalse($results['required_param']['nullable']);
+
+
+        $ruleset = [
+            'array_param' => 'array',
+            'array_param.*.field' => 'nullable|string',
+        ];
+
+        $results = $this->strategy->parse($ruleset);
+
+        $this->assertFalse($results['array_param']['nullable']);
+        $this->assertTrue($results['array_param[].field']['nullable']);
+
+        $ruleset = [
+            'object' => 'array',
+            'object.field1' => 'string',
+            'object.field2' => 'nullable|string',
+        ];
+
+        $results = $this->strategy->parse($ruleset);
+
+        $this->assertFalse($results['object']['nullable']);
+        $this->assertFalse($results['object.field1']['nullable']);
+        $this->assertTrue($results['object.field2']['nullable']);
+    }
+
+    /** @test */
+    public function can_parse_rules_which_reference_other_fields()
+    {
+        $ruleset = [
+            'to_time' => 'date|max:6',
+            'from_time' => [
+                'date',
+                'before:to_time',
+            ],
+        ];
+
+        $results = $this->strategy->parse($ruleset);
+
+        $this->assertEquals("Must be a valid date. Must be a date before <code>to_time</code>.", $results['from_time']['description']);
     }
 }
 
@@ -660,28 +734,27 @@ class DummyWithDocsValidationRule implements \Illuminate\Contracts\Validation\Ru
     }
 }
 
-if ($invokableRulesSupported) {
-    class DummyInvokableValidationRule implements \Illuminate\Contracts\Validation\InvokableRule
+// Laravel 9 introduced InvokableRule
+class DummyInvokableValidationRule implements \Illuminate\Contracts\Validation\InvokableRule
+{
+    public function __invoke($attribute, $value, $fail)
     {
-        public function __invoke($attribute, $value, $fail)
-        {
-            if (strtoupper($value) !== $value) {
-                $fail(':attribute must be uppercase.');
-            }
+        if (strtoupper($value) !== $value) {
+            $fail(':attribute must be uppercase.');
         }
+    }
 
-        public function docs()
-        {
+    public function docs()
+    {
 
-            return [
-                'description' => 'This rule is invokable.',
-            ];
-        }
+        return [
+            'description' => 'This rule is invokable.',
+        ];
     }
 }
 
 if ($laravel10Rules) {
-// Laravel 10 deprecated the previous Rule and InvokableRule classes for a single interface
+    // Laravel 10 deprecated the previous Rule and InvokableRule classes for a single interface
     // (https://github.com/laravel/framework/pull/45954)
     class DummyL10ValidationRule implements \Illuminate\Contracts\Validation\ValidationRule
     {

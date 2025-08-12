@@ -22,9 +22,8 @@ class GetFromLaravelAPITest extends BaseLaravelTest
     /** @test */
     public function can_infer_type_from_model_binding()
     {
-        $endpoint = $this->endpointForRoute("users/{id}", TestController::class, 'withInjectedModel');
-        // Can only run on PHP 8.1
-        // $endpoint = $this->endpointForRoute("categories/{category}/users/{id}/", TestController::class, 'withInjectedEnumAndModel');
+        // $endpoint = $this->endpointForRoute("users/{id}", TestController::class, 'withInjectedModel');
+        $endpoint = $this->endpointForRoute("categories/{category}/users/{id}/", TestController::class, 'withInjectedEnumAndModel');
         $results = $this->fetch($endpoint);
 
         $this->assertArraySubset([
@@ -32,14 +31,14 @@ class GetFromLaravelAPITest extends BaseLaravelTest
             "description" => "The ID of the user.",
             "required" => true,
             "type" => "integer",
-        ], $results['id']);/*
+        ], $results['id']);
         $this->assertArraySubset([
             "name" => "category",
             "description" => "The category.",
             "required" => true,
             "type" => "string",
             "example" => \Knuckles\Scribe\Tests\Fixtures\Category::cases()[0]->value,
-        ], $results['category']);*/
+        ], $results['category']);
         $this->assertIsInt($results['id']['example']);
     }
 
@@ -140,6 +139,22 @@ class GetFromLaravelAPITest extends BaseLaravelTest
         ], $results['id']);
 
         $property->setValue($this->app, $oldNamespace);
+    }
+
+    /** @test */
+    public function can_infer_correct_uri_from_route_with_optional_parameter_and_named_resource_routename()
+    {
+        $endpoint = $this->endpoint(function (ExtractedEndpointData $e) {
+            $e->method = new \ReflectionMethod(TestController::class, 'dummy');
+            $e->route = app(Router::class)
+                ->addRoute(['GET'], "/users/{user?}/show", ['uses' => [TestController::class, 'dummy']])
+                ->name('users.show')
+            ;
+            $e->uri = UrlParamsNormalizer::normalizeParameterNamesInRouteUri($e->route, $e->method);
+
+        });
+
+        $this->assertEquals('users/{id?}/show', $endpoint->uri);
     }
 
     protected function endpointForRoute($path, $controller, $method): ExtractedEndpointData

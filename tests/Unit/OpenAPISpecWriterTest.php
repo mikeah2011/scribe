@@ -7,6 +7,8 @@ use Illuminate\Support\Arr;
 use Knuckles\Camel\Camel;
 use Knuckles\Camel\Output\OutputEndpointData;
 use Knuckles\Scribe\Tests\BaseUnitTest;
+use Knuckles\Scribe\Tests\Fixtures\ComponentsOpenApiGenerator;
+use Knuckles\Scribe\Tests\Fixtures\TestOpenApiGenerator;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Writing\OpenAPISpecWriter;
 
@@ -127,6 +129,22 @@ class OpenAPISpecWriterTest extends BaseUnitTest
     }
 
     /** @test */
+    public function adds_deprecation_info_correctly()
+    {
+        $endpointData1 = $this->createMockEndpointData(['uri' => 'path1', 'httpMethods' => ['GET'], 'metadata.deprecated' => true]);
+        $endpointData2 = $this->createMockEndpointData(['uri' => 'path2', 'httpMethods' => ['GET'], 'metadata.deprecated' => false]);
+        $groups = [$this->createGroup([$endpointData1, $endpointData2])];
+
+        $results = $this->generate($groups);
+
+        $this->assertIsArray($results['paths']);
+        $this->assertCount(2, $results['paths']);
+        $this->assertArrayHasKey('deprecated', $results['paths']['/path1']['get']);
+        $this->assertTrue(true, $results['paths']['/path1']['get']['deprecated']);
+        $this->assertArrayNotHasKey('deprecated', $results['paths']['/path2']['get']);
+    }
+
+    /** @test */
     public function adds_url_parameters_correctly_as_parameters_on_path_item_object()
     {
         $endpointData1 = $this->createMockEndpointData([
@@ -210,6 +228,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'example' => 'hahoho',
                     'type' => 'string',
                     'name' => 'param',
+                    'nullable' => false
                 ],
             ],
         ]);
@@ -231,6 +250,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 'type' => 'string',
                 'description' => 'A query param',
                 'example' => 'hahoho',
+                'nullable' => false
             ],
         ], $results['paths']['/path1']['get']['parameters'][0]);
     }
@@ -248,6 +268,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => false,
                     'example' => 'hahoho',
                     'type' => 'string',
+                    'nullable' => false,
                 ],
                 'integerParam' => [
                     'name' => 'integerParam',
@@ -255,6 +276,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => true,
                     'example' => 99,
                     'type' => 'integer',
+                    'nullable' => false,
                 ],
                 'booleanParam' => [
                     'name' => 'booleanParam',
@@ -262,6 +284,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => true,
                     'example' => false,
                     'type' => 'boolean',
+                    'nullable' => false,
                 ],
                 'objectParam' => [
                     'name' => 'objectParam',
@@ -269,6 +292,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => false,
                     'example' => [],
                     'type' => 'object',
+                    'nullable' => false,
                 ],
                 'objectParam.field' => [
                     'name' => 'objectParam.field',
@@ -276,6 +300,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => false,
                     'example' => 119.0,
                     'type' => 'number',
+                    'nullable' => false,
                 ],
             ],
         ]);
@@ -338,26 +363,31 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                 'description' => 'String param',
                                 'example' => 'hahoho',
                                 'type' => 'string',
+                                'nullable' => false,
                             ],
                             'booleanParam' => [
                                 'description' => 'Boolean param',
                                 'example' => false,
                                 'type' => 'boolean',
+                                'nullable' => false,
                             ],
                             'integerParam' => [
                                 'description' => 'Integer param',
                                 'example' => 99,
                                 'type' => 'integer',
+                                'nullable' => false,
                             ],
                             'objectParam' => [
                                 'description' => 'Object param',
                                 'example' => [],
                                 'type' => 'object',
+                                'nullable' => false,
                                 'properties' => [
                                     'field' => [
                                         'description' => 'Object param field',
                                         'example' => 119.0,
                                         'type' => 'number',
+                                        'nullable' => false,
                                     ],
                                 ],
                             ],
@@ -381,6 +411,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                 'description' => 'File param',
                                 'type' => 'string',
                                 'format' => 'binary',
+                                'nullable' => false,
                             ],
                             'numberArrayParam' => [
                                 'description' => 'Number array param',
@@ -410,6 +441,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                             'type' => 'string',
                                             'description' => '',
                                             'example' => "hi",
+                                            'nullable' => false,
                                         ],
                                     ],
                                 ],
@@ -436,7 +468,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 [
                     'status' => 201,
                     'description' => '',
-                    'content' => '{"this": "shouldn\'t be ignored", "and this": "too", "sub level 0": { "sub level 1 key 1": "sl0_sl1k1", "sub level 1 key 2": [ { "sub level 2 key 1": "sl0_sl1k2_sl2k1", "sub level 2 key 2": { "sub level 3 key 1": "sl0_sl1k2_sl2k2_sl3k1" } } ], "sub level 1 key 3": { "sub level 2 key 1": "sl0_sl1k3_sl2k2", "sub level 2 key 2": { "sub level 3 key 1": "sl0_sl1k3_sl2k2_sl3k1", "sub level 3 key null": null, "sub level 3 key integer": 99 } } } }',
+                    'content' => '{"this": "shouldn\'t be ignored", "and this": "too", "also this": "too", "sub level 0": { "sub level 1 key 1": "sl0_sl1k1", "sub level 1 key 2": [ { "sub level 2 key 1": "sl0_sl1k2_sl2k1", "sub level 2 key 2": { "sub level 3 key 1": "sl0_sl1k2_sl2k2_sl3k1" } } ], "sub level 1 key 3": { "sub level 2 key 1": "sl0_sl1k3_sl2k2", "sub level 2 key 2": { "sub level 3 key 1": "sl0_sl1k3_sl2k2_sl3k1", "sub level 3 key null": null, "sub level 3 key integer": 99 }, "sub level 2 key 3 required" : "sl0_sl1k3_sl2k3" } } }',
                 ],
             ],
             'responseFields' => [
@@ -445,9 +477,19 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'type' => 'string',
                     'description' => 'Parameter description, ha!',
                 ],
+                'also this' => [
+                    'name' => 'also this',
+                    'type' => 'string',
+                    'description' => 'This response parameter is required.',
+                    'required' => true,
+                ],
                 'sub level 0.sub level 1 key 3.sub level 2 key 1' => [
-                    'description' => 'This is description of nested object',
-                ]
+                    'description' => 'This is a description of a nested object',
+                ],
+                'sub level 0.sub level 1 key 3.sub level 2 key 3 required' => [
+                    'description' => 'This is a description of a required nested object',
+                    'required' => true,
+                ],
             ],
         ]);
         $endpointData2 = $this->createMockEndpointData([
@@ -485,6 +527,11 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'example' => "too",
                                     'type' => 'string',
                                 ],
+                                'also this' => [
+                                    'description' => 'This response parameter is required.',
+                                    'example' => "too",
+                                    'type' => 'string',
+                                ],
                                 'sub level 0' => [
                                     'type' => 'object',
                                     'properties' => [
@@ -512,7 +559,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                 'sub level 2 key 1' => [
                                                     'type' => 'string',
                                                     'example' => 'sl0_sl1k3_sl2k2',
-                                                    'description' => 'This is description of nested object'
+                                                    'description' => 'This is a description of a nested object'
                                                 ],
                                                 'sub level 2 key 2' => [
                                                     'type' => 'object',
@@ -530,12 +577,24 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                             'example' => 99
                                                         ]
                                                     ]
-                                                ]
+                                                ],
+                                                'sub level 2 key 3 required' => [
+                                                    'type' => 'string',
+                                                    'example' => 'sl0_sl1k3_sl2k3',
+                                                    'description' => 'This is a description of a required nested object'
+                                                ],
+
+                                            ],
+                                            'required' => [
+                                                'sub level 2 key 3 required'
                                             ]
                                         ]
                                     ]
                                 ]
                             ],
+                            'required' => [
+                                'also this'
+                            ]
                         ],
                     ],
                 ],
@@ -555,6 +614,141 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 ],
             ],
         ], $results['paths']['/path2']['put']['responses']);
+    }
+
+    /** @test */
+    public function adds_required_fields_on_array_of_objects()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GEt'],
+            'uri' => '/path1',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'List of entities',
+                    'content' => '{"data":[{"name":"Resource name","uuid":"UUID","primary":true}]}',
+                ],
+            ],
+            'responseFields' => [
+                'data' => [
+                    'name' => 'data',
+                    'type' => 'array',
+                    'description' => 'Data wrapper',
+                ],
+                'data.name' => [
+                    'name' => 'Resource name',
+                    'type' => 'string',
+                    'description' => 'Name of the resource object',
+                    'required' => true,
+                ],
+                'data.uuid' => [
+                    'name' => 'Resource UUID',
+                    'type' => 'string',
+                    'description' => 'Unique ID for the resource',
+                    'required' => true,
+                ],
+                'data.primary' => [
+                    'name' => 'Is primary',
+                    'type' => 'bool',
+                    'description' => 'Is primary resource',
+                    'required' => true,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+
+        $results = $this->generate($groups);
+
+        $this->assertArraySubset([
+            '200' => [
+                'description' => 'List of entities',
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'data' => [
+                                    'type' => 'array',
+                                    'description' => 'Data wrapper',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'name' => [
+                                                'type' => 'string',
+                                                'description' => 'Name of the resource object',
+                                            ],
+                                            'uuid' => [
+                                                'type' => 'string',
+                                                'description' => 'Unique ID for the resource',
+                                            ],
+                                            'primary' => [
+                                                'type' => 'boolean',
+                                                'description' => 'Is primary resource',
+                                            ],
+                                        ],
+                                    ],
+                                    'required' => [
+                                        'name',
+                                        'uuid',
+                                        'primary',
+                                    ]
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path1']['get']['responses']);
+    }
+
+    /** @test */
+    public function generates_correctly_for_array_of_strings()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/path1',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'List of entities',
+                    'content' => '{"data":["Resource name"]}',
+                ],
+            ],
+            'responseFields' => [
+                'data' => [
+                    'name' => 'data',
+                    'type' => 'string[]',
+                    'description' => 'Data wrapper',
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+
+        $results = $this->generate($groups);
+
+        $this->assertArraySubset([
+            '200' => [
+                'description' => 'List of entities',
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'data' => [
+                                    'type' => 'array',
+                                    'description' => 'Data wrapper',
+                                    'items' => [
+                                        'type' => 'string',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path1']['get']['responses']);
     }
 
     /** @test */
@@ -728,6 +922,217 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 ],
             ],
         ], $results['paths']['/path1']['post']['responses']);
+    }
+
+    /** @test */
+    public function adds_enum_values_to_response_properties()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GEt'],
+            'uri' => '/path1',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'List of entities',
+                    'content' => '{"data":[{"name":"Resource name","uuid":"UUID","primary":true}]}',
+                ],
+            ],
+            'responseFields' => [
+                'data' => [
+                    'name' => 'data',
+                    'type' => 'array',
+                    'description' => 'Data wrapper',
+                ],
+                'data.name' => [
+                    'name' => 'Resource name',
+                    'type' => 'string',
+                    'description' => 'Name of the resource object',
+                    'required' => true,
+                ],
+                'data.uuid' => [
+                    'name' => 'Resource UUID',
+                    'type' => 'string',
+                    'description' => 'Unique ID for the resource',
+                    'required' => true,
+                ],
+                'data.primary' => [
+                    'name' => 'Is primary',
+                    'type' => 'bool',
+                    'description' => 'Is primary resource',
+                    'required' => true,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+
+        $results = $this->generate($groups);
+
+        $this->assertArraySubset([
+            '200' => [
+                'description' => 'List of entities',
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'data' => [
+                                    'type' => 'array',
+                                    'description' => 'Data wrapper',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'name' => [
+                                                'type' => 'string',
+                                                'description' => 'Name of the resource object',
+                                            ],
+                                            'uuid' => [
+                                                'type' => 'string',
+                                                'description' => 'Unique ID for the resource',
+                                            ],
+                                            'primary' => [
+                                                'type' => 'boolean',
+                                                'description' => 'Is primary resource',
+                                            ],
+                                        ],
+                                    ],
+                                    'required' => [
+                                        'name',
+                                        'uuid',
+                                        'primary',
+                                    ]
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path1']['get']['responses']);
+    }
+
+    /** @test */
+    public function lists_required_properties_in_request_body()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'uri' => '/path',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'my_field' => [
+                    'name' => 'my_field',
+                    'description' => '',
+                    'required' => true,
+                    'example' => 'abc',
+                    'type' => 'string',
+                    'nullable' => false,
+                ],
+                'other_field.nested_field' => [
+                    'name' => 'nested_field',
+                    'description' => '',
+                    'required' => true,
+                    'example' => 'abc',
+                    'type' => 'string',
+                    'nullable' => false,
+                ],
+            ],
+        ]);
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        $this->assertArraySubset([
+            'requestBody' => [
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'my_field' => [
+                                    'type' => 'string',
+                                ],
+                                'other_field' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'nested_field' => [
+                                            'type' => 'string',
+                                        ],
+                                    ],
+                                    'required' => ['nested_field'],
+                                ],
+                            ],
+                            'required' => ['my_field']
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path']['post']);
+    }
+
+    /** @test */
+    public function can_extend_openapi_generator()
+    {
+        $endpointData1 = $this->createMockEndpointData([
+            'uri' => '/path',
+            'httpMethods' => ['POST'],
+            'custom' => ['permissions' => ['post:view']]
+        ]);
+        $groups = [$this->createGroup([$endpointData1])];
+        $extraGenerator = TestOpenApiGenerator::class;
+        $config = array_merge($this->config, [
+            'openapi' => [
+                'generators' => [
+                    $extraGenerator,
+                ],
+            ],
+        ]);
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+
+        $results = $writer->generateSpecContent($groups);
+
+        $this->assertEquals([['default' => ['post:view']]], $results['paths']['/path']['post']['security']);
+    }
+
+    /** @test */
+    public function can_extend_openapi_generator_parameters()
+    {
+        $endpointData1 = $this->createMockEndpointData([
+            'uri' => '/{slug}/path',
+            'httpMethods' => ['POST'],
+            'custom' => ['permissions' => ['post:view']],
+            'urlParameters.slug' => [
+                'description' => 'Something',
+                'required' => true,
+                'example' => 56,
+                'type' => 'integer',
+                'name' => 'slug',
+            ],
+        ]);
+        $groups = [$this->createGroup([$endpointData1])];
+        $extraGenerator = ComponentsOpenApiGenerator::class;
+        $config = array_merge($this->config, [
+            'openapi' => [
+                'generators' => [
+                    $extraGenerator,
+                ],
+            ],
+        ]);
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+
+        $results = $writer->generateSpecContent($groups);
+
+        $actualParameters = $results['paths']['/{slug}/path']['parameters'];
+        $this->assertCount(1, $actualParameters);
+        $this->assertEquals(['$ref' =>  "#/components/parameters/slugParam"], $actualParameters[0]);
+        $this->assertEquals([
+            'slugParam' => [
+                'in' => 'path',
+                'name' => 'slug',
+                'description' => 'The slug of the organization.',
+                'example' => 'acme-corp',
+                'required' => true,
+                'schema' => [
+                    'type' => 'string',
+                ],
+            ]
+        ], $results['components']['parameters']);
     }
 
     protected function createMockEndpointData(array $custom = []): OutputEndpointData

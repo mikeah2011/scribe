@@ -17,10 +17,6 @@ class GetFromLaravelAPI extends Strategy
 
     public function __invoke(ExtractedEndpointData $endpointData, array $routeRules = []): ?array
     {
-        if (Utils::isLumen()) {
-            return (new GetFromLumenAPI($this->config))($endpointData, $routeRules);
-        };
-
         $parameters = [];
 
         $path = $endpointData->uri;
@@ -38,11 +34,7 @@ class GetFromLaravelAPI extends Strategy
         }
 
         $parameters = $this->inferBetterTypesAndExamplesForEloquentUrlParameters($parameters, $endpointData);
-
-        if (version_compare(PHP_VERSION, '8.1.0', '>=')) {
-            $parameters = $this->inferBetterTypesAndExamplesForEnumUrlParameters($parameters, $endpointData);
-        }
-
+        $parameters = $this->inferBetterTypesAndExamplesForEnumUrlParameters($parameters, $endpointData);
         $parameters = $this->setTypesAndExamplesForOthers($parameters, $endpointData);
 
         return $parameters;
@@ -186,7 +178,7 @@ class GetFromLaravelAPI extends Strategy
      *
      * @return string|null
      */
-    protected function getNameOfUrlThing(string $url, string $paramName, string $alternateParamName = null): ?string
+    protected function getNameOfUrlThing(string $url, string $paramName, ?string $alternateParamName = null): ?string
     {
         $parts = explode("/", $url);
         if (count($parts) === 1) return null; // URL was "/{thing}"

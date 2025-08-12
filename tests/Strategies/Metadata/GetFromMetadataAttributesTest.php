@@ -5,11 +5,13 @@ namespace Knuckles\Scribe\Tests\Strategies\QueryParameters;
 use Closure;
 use Knuckles\Camel\Extraction\ExtractedEndpointData;
 use Knuckles\Scribe\Attributes\Authenticated;
+use Knuckles\Scribe\Attributes\Deprecated;
 use Knuckles\Scribe\Attributes\Endpoint;
 use Knuckles\Scribe\Attributes\Group;
 use Knuckles\Scribe\Attributes\Subgroup;
 use Knuckles\Scribe\Attributes\Unauthenticated;
 use Knuckles\Scribe\Extracting\Strategies\Metadata\GetFromMetadataAttributes;
+use Knuckles\Scribe\Tests\Fixtures\TestGroupBackedEnum;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use PHPUnit\Framework\TestCase;
 use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
@@ -85,6 +87,21 @@ class UseMetadataAttributesTest extends TestCase
         ], $results);
 
         $endpoint = $this->endpoint(function (ExtractedEndpointData $e) {
+            $e->controller = new ReflectionClass(MetadataAttributesTestController::class);
+            $e->method = $e->controller->getMethod('b2');
+        });
+        $results = $this->fetch($endpoint);
+        $this->assertArraySubset([
+            "groupName" => "Users",
+            "groupDescription" => "",
+            "subgroup" => "Admins",
+            "subgroupDescription" => "",
+            "title" => "Endpoint B2",
+            "description" => "",
+            "authenticated" => false,
+        ], $results);
+
+        $endpoint = $this->endpoint(function (ExtractedEndpointData $e) {
             $e->controller = new ReflectionClass(MetadataAttributesTestController2::class);
             $e->method = $e->controller->getMethod('c1');
         });
@@ -108,6 +125,24 @@ class UseMetadataAttributesTest extends TestCase
         $results = $this->fetch($endpoint);
         $this->assertArraySubset([
             "title" => "Endpoint C"
+        ], $results);
+
+        $endpoint = $this->endpoint(function (ExtractedEndpointData $e) {
+            $e->controller = new ReflectionClass(MetadataAttributesTestController4::class);
+            $e->method = $e->controller->getMethod('c1');
+        });
+        $results = $this->fetch($endpoint);
+        $this->assertArraySubset([
+            "deprecated" => true,
+        ], $results);
+
+        $endpoint = $this->endpoint(function (ExtractedEndpointData $e) {
+            $e->controller = new ReflectionClass(MetadataAttributesTestController5::class);
+            $e->method = $e->controller->getMethod('c1');
+        });
+        $results = $this->fetch($endpoint);
+        $this->assertArraySubset([
+            "deprecated" => true,
         ], $results);
     }
 
@@ -159,6 +194,13 @@ class MetadataAttributesTestController
     public function b1()
     {
     }
+
+    #[Group(TestGroupBackedEnum::Users)]
+    #[Subgroup(TestGroupBackedEnum::Admins)]
+    #[Endpoint("Endpoint B2")]
+    public function b2()
+    {
+    }
 }
 
 #[Authenticated]
@@ -178,6 +220,22 @@ class MetadataAttributesTestController2
 #[Endpoint("Endpoint C")]
 class MetadataAttributesTestController3
 {
+    public function c1()
+    {
+    }
+}
+
+#[Deprecated]
+class MetadataAttributesTestController4
+{
+    public function c1()
+    {
+    }
+}
+
+class MetadataAttributesTestController5
+{
+    #[Deprecated]
     public function c1()
     {
     }

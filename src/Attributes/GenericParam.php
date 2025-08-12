@@ -14,6 +14,7 @@ class GenericParam
         public ?bool $required = true,
         public mixed $example = null, /* Pass 'No-example' to omit the example */
         public mixed $enum = null, // Can pass a list of values, or a native PHP enum
+        public ?bool $nullable = false,
     ) {
     }
 
@@ -26,6 +27,7 @@ class GenericParam
             "required" => $this->required,
             "example" => $this->example,
             "enumValues" => $this->getEnumValues(),
+            'nullable' => $this->nullable,
         ];
     }
 
@@ -39,12 +41,10 @@ class GenericParam
             return $this->enum;
         }
 
-        if (function_exists('enum_exists') && enum_exists($this->enum)
-            && method_exists($this->enum, 'tryFrom')
-        ) {
+        if (enum_exists($this->enum) && method_exists($this->enum, 'tryFrom')) {
             return array_map(
             // $case->value only exists on BackedEnums, not UnitEnums
-            // method_exists($enum, 'tryFrom') implies $enum instanceof BackedEnum
+            // method_exists($enum, 'tryFrom') implies the enum is a BackedEnum
             // @phpstan-ignore-next-line
                 fn ($case) => $case->value,
                 $this->enum::cases()

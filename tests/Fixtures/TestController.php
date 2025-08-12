@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\Rule;
 use Knuckles\Scribe\Tools\Utils;
+use Symfony\Component\HttpFoundation\StreamedJsonResponse;
 
 /**
  * @group Group A
@@ -252,6 +253,18 @@ class TestController extends Controller
             'delicious' => $fruit->delicious,
             'responseCall' => true,
         ];
+    }
+
+    public function withStreamedResponse()
+    {
+        function yieldItems() {
+            yield 'one';
+            yield 'two';
+        }
+        // Laravel v11 added the shortcut response()->streamJson(...)
+        return new StreamedJsonResponse([
+            'items' => yieldItems(),
+        ]);
     }
 
     public function echoesConfig()
@@ -502,6 +515,109 @@ class TestController extends Controller
         // Do stuff
     }
 
+    public function withInlineRequestValidateFacade()
+    {
+        // Some stuff
+        $validated = Request::validate([
+            // The id of the user. Example: 9
+            'user_id' => 'int|required',
+            // The id of the room.
+            'room_id' => ['string', 'in:3,5,6'],
+            // Whether to ban the user forever. Example: false
+            'forever' => 'boolean',
+            // Just need something here. No-example
+            'another_one' => 'numeric',
+            'even_more_param' => 'array',
+            'book.name' => 'string',
+            'book.author_id' => 'integer',
+            'book.pages_count' => 'integer',
+            'ids.*' => 'integer',
+            // The first name of the user. Example: John
+            'users.*.first_name' => ['string'],
+            // The last name of the user. Example: Doe
+            'users.*.last_name' => 'string',
+        ]);
+
+        // Do stuff
+    }
+
+    public function withInlineRequestValidateFacadeNoAssignment()
+    {
+        Request::validate([
+            // The id of the user. Example: 9
+            'user_id' => 'int|required',
+            // The id of the room.
+            'room_id' => ['string', 'in:3,5,6'],
+            // Whether to ban the user forever. Example: false
+            'forever' => 'boolean',
+            // Just need something here. No-example
+            'another_one' => 'numeric',
+            'even_more_param' => 'array',
+            'book.name' => 'string',
+            'book.author_id' => 'integer',
+            'book.pages_count' => 'integer',
+            'ids.*' => 'integer',
+            // The first name of the user. Example: John
+            'users.*.first_name' => ['string'],
+            // The last name of the user. Example: Doe
+            'users.*.last_name' => 'string',
+        ]);
+
+        // Do stuff
+    }
+
+    public function withInlineRequestValidateFacadeWithFullImport()
+    {
+        // Some stuff
+        $validated = \Illuminate\Support\Facades\Request::validate([
+            // The id of the user. Example: 9
+            'user_id' => 'int|required',
+            // The id of the room.
+            'room_id' => ['string', 'in:3,5,6'],
+            // Whether to ban the user forever. Example: false
+            'forever' => 'boolean',
+            // Just need something here. No-example
+            'another_one' => 'numeric',
+            'even_more_param' => 'array',
+            'book.name' => 'string',
+            'book.author_id' => 'integer',
+            'book.pages_count' => 'integer',
+            'ids.*' => 'integer',
+            // The first name of the user. Example: John
+            'users.*.first_name' => ['string'],
+            // The last name of the user. Example: Doe
+            'users.*.last_name' => 'string',
+        ]);
+
+        // Do stuff
+    }
+
+    public function withInlineRequestValidateWithBagFacade()
+    {
+        // Some stuff
+        $validated = Request::validateWithBag('stuff', [
+            // The id of the user. Example: 9
+            'user_id' => 'int|required',
+            // The id of the room.
+            'room_id' => ['string', 'in:3,5,6'],
+            // Whether to ban the user forever. Example: false
+            'forever' => 'boolean',
+            // Just need something here. No-example
+            'another_one' => 'numeric',
+            'even_more_param' => 'array',
+            'book.name' => 'string',
+            'book.author_id' => 'integer',
+            'book.pages_count' => 'integer',
+            'ids.*' => 'integer',
+            // The first name of the user. Example: John
+            'users.*.first_name' => ['string'],
+            // The last name of the user. Example: Doe
+            'users.*.last_name' => 'string',
+        ]);
+
+        // Do stuff
+    }
+
     public function withInlineValidatorMake(Request $request)
     {
         // Some stuff
@@ -529,6 +645,29 @@ class TestController extends Controller
         if ($validator->fails()) {
 
         }
+    }
+    public function withInlineValidatorMakeValidate(Request $request)
+    {
+        // Some stuff
+        Validator::make($request, [
+            // The id of the user. Example: 9
+            'user_id' => 'int|required',
+            // The id of the room.
+            'room_id' => ['string', 'in:3,5,6'],
+            // Whether to ban the user forever. Example: false
+            'forever' => 'boolean',
+            // Just need something here. No-example
+            'another_one' => 'numeric',
+            'even_more_param' => 'array',
+            'book.name' => 'string',
+            'book.author_id' => 'integer',
+            'book.pages_count' => 'integer',
+            'ids.*' => 'integer',
+            // The first name of the user. Example: John
+            'users.*.first_name' => ['string'],
+            // The last name of the user. Example: Doe
+            'users.*.last_name' => 'string',
+        ])->validate();
     }
 
     public function withInlineRequestValidateWithBag(Request $request)
@@ -585,7 +724,7 @@ class TestController extends Controller
     {
         return null;
     }
-    
+
     public function withInjectedModelFullParamName(TestPost $testPost)
     {
         return null;
@@ -597,23 +736,18 @@ class TestController extends Controller
             'enum_class' => ['required', new Rules\Enum(\Knuckles\Scribe\Tests\Fixtures\TestStringBackedEnum::class), 'nullable'],
             'enum_string' => ['required', Rule::enum('\Knuckles\Scribe\Tests\Fixtures\TestIntegerBackedEnum'), 'nullable'],
             // Not full path class call won't work
-            'enum_inexistent' => ['required', new Rules\Enum(TestStringBackedEnum::class)],
+            'enum_nonexistent' => ['required', new Rules\Enum(TestStringBackedEnum::class)],
         ]);
     }
 
-    /**
-     * Can only run on PHP 8.1
     public function withInjectedEnumAndModel(Category $category, TestUser $user)
     {
         return null;
     }
-     */
 }
 
-/**
 enum Category: string
 {
     case Fruits = 'fruits';
     case People = 'people';
 }
-*/

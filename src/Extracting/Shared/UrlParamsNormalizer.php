@@ -62,7 +62,12 @@ class UrlParamsNormalizer
                 if (!$alreadyFoundResourceParam) {
                     // This is the first resource param (from the end).
                     // We set it to `params/{id}` (or whatever field it's bound to)
-                    $replaceWith = ["$pluralResource/{{$binding}}", "$pluralResource/{{$binding}?}"];
+                    $replaceWith = [
+                        "$pluralResource/{{$binding}}",
+                        "$pluralResource/{{$binding}}",
+                        "$pluralResource/{{$binding}?}",
+                        "$pluralResource/{{$binding}?}",
+                    ];
                     $alreadyFoundResourceParam = true;
                 } else {
                     // Other resource parameters will be `params/{<param>_id}`
@@ -145,7 +150,7 @@ class UrlParamsNormalizer
      * @return string|null
      */
     protected static function getRouteKeyForUrlParam(
-        Route $route, string $paramName, array $typeHintedEloquentModels = [], string $default = null
+        Route $route, string $paramName, array $typeHintedEloquentModels = [], ?string $default = null
     ): ?string
     {
         if ($binding = self::getInlineRouteKey($route, $paramName)) {
@@ -165,11 +170,7 @@ class UrlParamsNormalizer
      */
     protected static function getInlineRouteKey(Route $route, string $paramName): ?string
     {
-        // Was added in Laravel 7.x
-        if (method_exists($route, 'bindingFieldFor')) {
-            return $route->bindingFieldFor($paramName);
-        }
-        return null;
+        return $route->bindingFieldFor($paramName);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Knuckles\Scribe\Tests\Fixtures;
 
+use Illuminate\Foundation\Application;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -33,6 +34,8 @@ class TestUserApiResource extends JsonResource
                 return TestPetApiResource::collection($this->pets);
             }),
         ];
+
+        $result['children_count'] = $this->whenCounted('children_count');
 
         if ($this['state1'] && $this['random-state']) {
             $result['state1'] = $this['state1'];

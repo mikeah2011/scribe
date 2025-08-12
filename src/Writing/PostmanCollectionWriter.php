@@ -21,7 +21,7 @@ class PostmanCollectionWriter
 
     protected string $baseUrl;
 
-    public function __construct(DocumentationConfig $config = null)
+    public function __construct(?DocumentationConfig $config = null)
     {
         $this->config = $config ?: new DocumentationConfig(config('scribe', []));
         $this->baseUrl = $this->config->get('base_url') ?: config('app.url');
@@ -145,7 +145,8 @@ class PostmanCollectionWriter
         }
 
         $endpointItem = [
-            'name' => $endpoint->metadata->title !== '' ? $endpoint->metadata->title : ($endpoint->httpMethods[0].' '.$endpoint->uri),
+            'name' => ($endpoint->metadata->title !== '' ? $endpoint->metadata->title : ($endpoint->httpMethods[0].' '.$endpoint->uri))
+                .($endpoint->metadata->deprecated ? ' [DEPRECATED]' : ''),
             'request' => [
                 'url' => $this->generateUrlObject($endpoint),
                 'method' => $method,
@@ -222,7 +223,7 @@ class PostmanCollectionWriter
             if (!is_array($value)) {
                 $body[] = [
                     'key' => $index,
-                    'value' => $value,
+                    'value' => (string) $value,
                     'type' => 'text',
                     'description' => $paramsFullDetails[$index]->description ?? '',
                 ];
@@ -293,7 +294,7 @@ class PostmanCollectionWriter
                     // See https://www.php.net/manual/en/function.parse-str.php
                     $query[] = [
                         'key' => "{$name}[$index]",
-                        'value' => $value,
+                        'value' => is_string($value) ? $value : strval($value),
                         'description' => strip_tags($parameterData->description),
                         // Default query params to disabled if they aren't required and have empty values
                         'disabled' => !$parameterData->required && empty($parameterData->example),
