@@ -9,6 +9,11 @@ use Knuckles\Scribe\Tests\BaseUnitTest;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Writing\PostmanCollectionWriter;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class PostmanCollectionWriterTest extends BaseUnitTest
 {
     /** @test */
@@ -203,6 +208,64 @@ class PostmanCollectionWriterTest extends BaseUnitTest
     }
 
     /** @test */
+    public function query_parameter_keys_and_values_are_not_pre_url_encoded()
+    {
+        // Per Postman Collection v2.1 spec, query[].key/value are stored as raw strings
+        // and the Postman client encodes them when sending. Pre-encoding here causes
+        // a double-encode on send (e.g. `,` → `%2C` → `%252C` at the server).
+        $endpointData = $this->createMockEndpointData('fake/{id}');
+        $endpointData->urlParameters['id'] = new Parameter([
+            'name' => 'id',
+            'description' => '',
+            'required' => true,
+            'example' => 'foo bar',
+        ]);
+        $endpointData->queryParameters = [
+            'include' => new Parameter([
+                'name' => 'include',
+                'type' => 'string',
+                'description' => 'Comma-separated relationships',
+                'required' => false,
+                'example' => 'customer,reward',
+            ]),
+            'filter[email]' => new Parameter([
+                'name' => 'filter[email]',
+                'type' => 'string',
+                'description' => 'Filter',
+                'required' => false,
+                'example' => 'test@example.com',
+            ]),
+        ];
+        $endpointData->cleanQueryParameters = Extractor::cleanParams($endpointData->queryParameters);
+
+        $endpoints = $this->createMockEndpointGroup([$endpointData]);
+        $collection = $this->generate(endpoints: [$endpoints]);
+
+        $url = data_get($collection, 'item.0.item.0.request.url');
+
+        // Query objects keep raw values — Postman encodes on send.
+        $this->assertContains([
+            'key' => 'include',
+            'value' => 'customer,reward',
+            'description' => 'Comma-separated relationships',
+            'disabled' => false,
+        ], $url['query']);
+        $this->assertContains([
+            'key' => 'filter[email]',
+            'value' => 'test@example.com',
+            'description' => 'Filter',
+            'disabled' => false,
+        ], $url['query']);
+
+        // URL variables also stored raw.
+        $this->assertSame('foo bar', $url['variable'][0]['value']);
+
+        // Raw URL is encoded for HTTP validity.
+        $this->assertStringContainsString('include=customer%2Creward', $url['raw']);
+        $this->assertStringContainsString('filter%5Bemail%5D=test%40example.com', $url['raw']);
+    }
+
+    /** @test */
     public function auth_info_is_added_correctly()
     {
         $endpointData1 = $this->createMockEndpointData('some/path');
@@ -222,11 +285,11 @@ class PostmanCollectionWriterTest extends BaseUnitTest
         $collection = $this->generate($config, [$endpoints]);
 
         $expected = [
-            'type'   => 'bearer',
+            'type' => 'bearer',
             'bearer' => [
                 [
-                    'key'   => null,
-                    'type'  => 'string',
+                    'key' => null,
+                    'type' => 'string',
                 ],
             ],
         ];
@@ -262,23 +325,23 @@ class PostmanCollectionWriterTest extends BaseUnitTest
     public function organizes_groups_and_subgroups_correctly()
     {
         $endpointData1 = $this->createMockEndpointData('endpoint1');
-        $endpointData1->metadata->subgroup = "Subgroup A";
+        $endpointData1->metadata->subgroup = 'Subgroup A';
         $endpointData2 = $this->createMockEndpointData('endpoint2');
         $endpointData3 = $this->createMockEndpointData('endpoint3');
-        $endpointData3->metadata->subgroup = "Subgroup A";
-        $endpointData3->metadata->subgroupDescription = "Subgroup A description";
+        $endpointData3->metadata->subgroup = 'Subgroup A';
+        $endpointData3->metadata->subgroupDescription = 'Subgroup A description';
         $endpoints = $this->createMockEndpointGroup([$endpointData1, $endpointData2, $endpointData3], 'Group A');
 
         $config = [
             'title' => 'Test API',
             'base_url' => 'fake.localhost',
-            'auth' => [ 'enabled' => false,],
+            'auth' => ['enabled' => false],
         ];
         $collection = $this->generate($config, [$endpoints]);
 
         $this->assertEquals('Group A', $collection['item'][0]['name']);
-        $this->assertEquals(['Subgroup A', 'POST endpoint2'], array_map(fn($i) => $i['name'], $collection['item'][0]['item']));
-        $this->assertEquals(['POST endpoint1', 'POST endpoint3'], array_map(fn($i) => $i['name'], $collection['item'][0]['item'][0]['item']));
+        $this->assertEquals(['Subgroup A', 'POST endpoint2'], array_map(fn ($i) => $i['name'], $collection['item'][0]['item']));
+        $this->assertEquals(['POST endpoint1', 'POST endpoint3'], array_map(fn ($i) => $i['name'], $collection['item'][0]['item'][0]['item']));
         $this->assertEquals('Subgroup A description', $collection['item'][0]['item'][0]['description']);
     }
 
@@ -314,10 +377,11 @@ class PostmanCollectionWriterTest extends BaseUnitTest
     }
 
     protected function generate(
-        array $config = ['base_url' => 'fake.localhost', 'title' => 'Test API'], array $endpoints = []
-    ): array
-    {
+        array $config = ['base_url' => 'fake.localhost', 'title' => 'Test API'],
+        array $endpoints = [],
+    ): array {
         $writer = new PostmanCollectionWriter(new DocumentationConfig($config));
+
         return $writer->generatePostmanCollection($endpoints);
     }
 }

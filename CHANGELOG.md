@@ -12,6 +12,83 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Removed
 
+## 5.11.0 (08 Jun 2026)
+### Fixed
+- Fix nested BelongsTo relationships loading in `ResponseFromApiResource` ([#1066](https://github.com/knuckleswtf/scribe/pull/1066))
+- Fix: Don't pre-urlencode Postman collection query keys/values ([#1075](https://github.com/knuckleswtf/scribe/pull/1075))
+
+### Modified
+- Update description for `exists` validation rule ([#1069](https://github.com/knuckleswtf/scribe/pull/1069))
+
+## 5.10.0 (09 May 2026)
+### Added
+- Add `afterExtracting` hook to modify endpoint data after extraction ([#1072](https://github.com/knuckleswtf/scribe/pull/1072))
+- Allow Blade syntax in `base_url` config ([#1076](https://github.com/knuckleswtf/scribe/pull/1076))
+
+### Fixed
+- Fix: Move `required` from array schema to object schema inside `items` ([#1068](https://github.com/knuckleswtf/scribe/pull/1068))
+- Handle null example in array body parameter ([#1065](https://github.com/knuckleswtf/scribe/pull/1065))
+
+## 5.9.0 (21 March 2026)
+### Modified
+- Add symfony/yaml v8 support ([#1063](https://github.com/knuckleswtf/scribe/pull/1063))
+
+## 5.8.0 (23 February 2026)
+### Added
+- Allow opt in suppressing of model events when generating response data with factories ([#1057](https://github.com/knuckleswtf/scribe/pull/1057))
+- Add agent skill for releasing (c56c096d)
+
+### Modified
+- Bump dependencies for Laravel 13 ([#1060](https://github.com/knuckleswtf/scribe/pull/1060))
+
+### Fixed
+- Fix undefined array key 'text' in MarkdownParser::blockHeader ([#1059](https://github.com/knuckleswtf/scribe/pull/1059))
+
+## 5.7.0 (04 February 2026)
+### Added
+- Feature: laravel console output ([#1047](https://github.com/knuckleswtf/scribe/pull/1047))
+- Add AGENTS.md for AI coding assistants ([#1055](https://github.com/knuckleswtf/scribe/pull/1055))
+- Add OpenAPI 3.1 schema example to examples conversion ([#1042](https://github.com/knuckleswtf/scribe/pull/1042))
+
+### Modified
+- Replace erusev/parsedown with parsedown/parsedown for PHP 8.4 compatibility ([#1049](https://github.com/knuckleswtf/scribe/pull/1049))
+- Use pint for code style ([#1054](https://github.com/knuckleswtf/scribe/pull/1054))
+
+### Fixed
+- Fix HTML special characters breaking Try It Out panel JSON display ([#1048](https://github.com/knuckleswtf/scribe/pull/1048))
+- Respect wrapping of API resources ([#1046](https://github.com/knuckleswtf/scribe/pull/1046))
+- Prevent empty enums when omitting ResponseField parameters ([#1044](https://github.com/knuckleswtf/scribe/pull/1044))
+- Openapi nullable response fields ([#1041](https://github.com/knuckleswtf/scribe/pull/1041))
+
+## 5.6.0 (23 November 2025)
+- Add support for OpenAPI v3.1 specification ([#1040](https://github.com/knuckleswtf/scribe/pull/1040))
+    - Added `openapi.version` configuration option to choose between OpenAPI 3.0.3 (default) and 3.1.0
+    - OpenAPI 3.1 uses JSON Schema Draft 2020-12 compatible nullable syntax: `type: ["string", "null"]`
+    - OpenAPI 3.0 continues to use `nullable: true` property
+    - Fully backward compatible - defaults to 3.0.3 if not configured
+
+## 5.5.0 (25 October 2025)
+### Modified
+- Change shalvah/clara constraint
+
+### Fixed
+- fix: handle rare edge case in base OpenApi spec generator after parallel merge ([#1031](https://github.com/knuckleswtf/scribe/pull/1031))
+
+## 5.4.0 (21 October 2025)
+### Fixed
+- fix: arrays of objects support in OpenAPI response generation ([1021](https://github.com/knuckleswtf/scribe/pull/1021))
+- fix: white space issue with headers displaying in endpoint view ([#1023](https://github.com/knuckleswtf/scribe/pull/1023))
+- fix: crash when API resource __construct enforces type in ResponseFromApiResource ([#1028](https://github.com/knuckleswtf/scribe/pull/1028))
+
+### Modified
+- Replace abandoned spatie/data-transfer-object with own DTO implementation ([#1024](https://github.com/knuckleswtf/scribe/pull/1024))
+
+### Added
+- Support `deprecated:` option for `#[BodyParam]/#[QueryParam]` attributes ([#1022](https://github.com/knuckleswtf/scribe/pull/1022))
+- Support for `sometimes` rule ([958](https://github.com/knuckleswtf/scribe/pull/958))
+- Support for custom response Content-Types (problem+json, etc.) ([#1029](https://github.com/knuckleswtf/scribe/pull/1029))
+- Support strings for the `#[Deprecated]` attribute ([#1019](https://github.com/knuckleswtf/scribe/pull/1019))
+
 ## 5.3.0 (29 July 2025)
 ### Added
 - Support `@deprecated`/`[#Deprecated]` annotations for deprecating endpoints, along with deprecated badge in the included themes ([#994](https://github.com/knuckleswtf/scribe/pull/994))

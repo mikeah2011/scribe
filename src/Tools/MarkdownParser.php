@@ -3,9 +3,8 @@
 namespace Knuckles\Scribe\Tools;
 
 use Illuminate\Support\Str;
-use Parsedown;
 
-class MarkdownParser extends Parsedown
+class MarkdownParser extends \Parsedown
 {
     public array $headings = [];
 
@@ -13,11 +12,15 @@ class MarkdownParser extends Parsedown
     {
         $block = parent::blockHeader($Line);
         if (isset($block['element']['name'])) {
-            $level = (int) trim($block['element']['name'], 'h');
-            $slug = Str::slug($block['element']['text']);
+            $text = $block['element']['text']
+                ?? $block['element']['handler']['argument']
+                ?? '';
+            $text = is_string($text) ? $text : '';
+            $level = (int) mb_trim($block['element']['name'], 'h');
+            $slug = Str::slug($text);
             $block['element']['attributes']['id'] = $slug;
             $this->headings[] = [
-                'text' => $block['element']['text'],
+                'text' => $text,
                 'level' => $level,
                 'slug' => $slug,
             ];

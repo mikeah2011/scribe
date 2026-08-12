@@ -6,36 +6,42 @@ use Knuckles\Scribe\Extracting\Strategies\GetFieldsFromTagStrategy;
 
 class GetFromBodyParamTag extends GetFieldsFromTagStrategy
 {
-    protected string $tagName = "bodyParam";
+    protected string $tagName = 'bodyParam';
 
     public function parseTag(string $tagContent): array
     {
         // Format:
-        // @bodyParam <name> <type> <"required" (optional)> <description>
+        // @bodyParam <name> <type> <"required" (optional)> <"deprecated" (optional)> <description>
         // Examples:
         // @bodyParam text string required The text.
         // @bodyParam user_id integer The ID of the user.
-        preg_match('/(.+?)\s+(.+?)\s+(required\s+)?([\s\S]*)/', $tagContent, $parsedContent);
+        // @bodyParam status string required deprecated Use `is_active` instead.
+        preg_match('/(.+?)\s+(.+?)\s+(required\s+)?(deprecated\s+)?([\s\S]*)/', $tagContent, $parsedContent);
 
         if (empty($parsedContent)) {
             // This means only name and type were supplied
             [$name, $type] = preg_split('/\s+/', $tagContent);
             $required = false;
+            $deprecated = false;
             $description = '';
         } else {
-            [$_, $name, $type, $required, $description] = $parsedContent;
-            $description = trim(str_replace(['No-example.', 'No-example'], '', $description));
-            if ($description == 'required') {
+            [$_, $name, $type, $required, $deprecated, $description] = $parsedContent;
+            $description = mb_trim(str_replace(['No-example.', 'No-example'], '', $description));
+            if ($description === 'required') {
                 $required = $description;
                 $description = '';
+            } elseif ($description === 'deprecated') {
+                $deprecated = $description;
+                $description = '';
             }
-            $required = trim($required) === 'required';
+            $required = mb_trim($required) === 'required';
+            $deprecated = mb_trim($deprecated) === 'deprecated';
         }
 
         $type = static::normalizeTypeName($type);
-        [$description, $example, $enumValues, $exampleWasSpecified] =
-            $this->getDescriptionAndExample($description, $type, $tagContent, $name);
+        [$description, $example, $enumValues, $exampleWasSpecified]
+            = $this->getDescriptionAndExample($description, $type, $tagContent, $name);
 
-        return compact('name', 'type', 'description', 'required', 'example', 'enumValues', 'exampleWasSpecified');
+        return compact('name', 'type', 'description', 'required', 'deprecated', 'example', 'enumValues', 'exampleWasSpecified');
     }
 }

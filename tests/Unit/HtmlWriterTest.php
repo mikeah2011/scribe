@@ -6,28 +6,59 @@ use Knuckles\Scribe\Tests\BaseLaravelTest;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Writing\HtmlWriter;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class HtmlWriterTest extends BaseLaravelTest
 {
     /** @test */
     public function sets_last_updated_correctly()
     {
-        $config = ["base_url" => "http://local.test", "title" => "API Docs"];
-        $config["last_updated"] = '';
+        $config = ['base_url' => 'http://local.test', 'title' => 'API Docs'];
+        $config['last_updated'] = '';
         $writer = new HtmlWriter(new DocumentationConfig($config));
-        $lastUpdated = $writer->getMetadata()["last_updated"];
+        $lastUpdated = $writer->getMetadata()['last_updated'];
         $this->assertEquals('', $lastUpdated);
 
-        $config["last_updated"] = "Last updated on {date:l}";
+        $config['last_updated'] = 'Last updated on {date:l}';
         $writer = new HtmlWriter(new DocumentationConfig($config));
-        $lastUpdated = $writer->getMetadata()["last_updated"];
-        $today = date("l");
-        $this->assertEquals("Last updated on $today", $lastUpdated);
+        $lastUpdated = $writer->getMetadata()['last_updated'];
+        $today = date('l');
+        $this->assertEquals("Last updated on {$today}", $lastUpdated);
 
-        $config["last_updated"] = "Last updated on {date:l, jS F} (Git commit {git:short})";
+        $config['last_updated'] = 'Last updated on {date:l, jS F} (Git commit {git:short})';
         $writer = new HtmlWriter(new DocumentationConfig($config));
-        $lastUpdated = $writer->getMetadata()["last_updated"];
-        $date = date("l, jS F");
-        $commit = trim(shell_exec('git rev-parse --short HEAD'));
-        $this->assertEquals("Last updated on $date (Git commit $commit)", $lastUpdated);
+        $lastUpdated = $writer->getMetadata()['last_updated'];
+        $date = date('l, jS F');
+        $commit = mb_trim(shell_exec('git rev-parse --short HEAD'));
+        $this->assertEquals("Last updated on {$date} (Git commit {$commit})", $lastUpdated);
+    }
+
+    /** @test */
+    public function renders_blade_syntax_in_base_url()
+    {
+        config()->set('app.url', 'https://resolved.example.com');
+
+        $writer = new HtmlWriter(new DocumentationConfig([
+            'base_url' => "{{ config('app.url') }}/api",
+            'title' => 'API Docs',
+        ]));
+
+        $baseUrl = (new \ReflectionClass($writer))->getProperty('baseUrl')->getValue($writer);
+        $this->assertEquals('https://resolved.example.com/api', $baseUrl);
+    }
+
+    /** @test */
+    public function leaves_plain_base_url_untouched()
+    {
+        $writer = new HtmlWriter(new DocumentationConfig([
+            'base_url' => 'https://plain.example.com',
+            'title' => 'API Docs',
+        ]));
+
+        $baseUrl = (new \ReflectionClass($writer))->getProperty('baseUrl')->getValue($writer);
+        $this->assertEquals('https://plain.example.com', $baseUrl);
     }
 }

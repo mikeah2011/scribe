@@ -2,27 +2,21 @@
 
 namespace Knuckles\Scribe\Writing;
 
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
-use Knuckles\Camel\Camel;
-use Knuckles\Camel\Extraction\Response;
 use Knuckles\Camel\Output\OutputEndpointData;
-use Knuckles\Camel\Output\Parameter;
 use Knuckles\Scribe\Extracting\ParamHelpers;
 use Knuckles\Scribe\Tools\DocumentationConfig;
-use Knuckles\Scribe\Tools\Utils;
+use Knuckles\Scribe\Writing\OpenApiSpecGenerators\Base31Generator;
 use Knuckles\Scribe\Writing\OpenApiSpecGenerators\BaseGenerator;
 use Knuckles\Scribe\Writing\OpenApiSpecGenerators\OpenApiGenerator;
 use Knuckles\Scribe\Writing\OpenApiSpecGenerators\OverridesGenerator;
 use Knuckles\Scribe\Writing\OpenApiSpecGenerators\SecurityGenerator;
-use function array_map;
 
 class OpenAPISpecWriter
 {
     use ParamHelpers;
 
-    const SPEC_VERSION = '3.0.3';
+    public const SPEC_VERSION = '3.0.3';
 
     private DocumentationConfig $config;
 
@@ -34,21 +28,31 @@ class OpenAPISpecWriter
     public function __construct(?DocumentationConfig $config = null)
     {
         $this->config = $config ?: new DocumentationConfig(config('scribe', []));
-        $this->generators = collect([
-                BaseGenerator::class,
-                SecurityGenerator::class,
-                OverridesGenerator::class,
-            ])
-            ->merge($this->config->get('openapi.generators',[]))
-            ->map(fn($generatorClass) => app()->makeWith($generatorClass, ['config' => $this->config]));
+        $generators = [
+            $this->isOpenApi31OrLater() ? Base31Generator::class : BaseGenerator::class,
+            SecurityGenerator::class,
+            OverridesGenerator::class,
+        ];
+        $this->generators = collect($generators)
+            ->merge($this->config->get('openapi.generators', []))
+            ->map(fn ($generatorClass) => app()->makeWith($generatorClass, ['config' => $this->config]));
     }
 
     /**
-     * See https://swagger.io/specification/
+     * Get the OpenAPI spec version to use from config, defaulting to 3.0.3.
+     * Supported versions: '3.0.3', '3.1.0'.
      *
-     * @param array<int, array{description: string, name: string, endpoints: OutputEndpointData[]}> $groupedEndpoints
+     * @return string The OpenAPI version
+     */
+    public function getSpecVersion(): string
+    {
+        return $this->config->get('openapi.version', self::SPEC_VERSION);
+    }
+
+    /**
+     * See https://swagger.io/specification/.
      *
-     * @return array
+     * @param  array<int, array{description: string, name: string, endpoints: OutputEndpointData[]}>  $groupedEndpoints
      */
     public function generateSpecContent(array $groupedEndpoints): array
     {
@@ -63,18 +67,18 @@ class OpenAPISpecWriter
     }
 
     /**
-     * @param array<int, array{description: string, name: string, endpoints: OutputEndpointData[]}>  $groupedEndpoints
-     *
-     * @return array
+     * @param  array<int, array{description: string, name: string, endpoints: OutputEndpointData[]}>  $groupedEndpoints
      */
     protected function generatePathsSpec(array $groupedEndpoints): array
     {
         $allEndpoints = collect($groupedEndpoints)->map->endpoints->flatten(1);
         // OpenAPI groups endpoints by path, then method
         $groupedByPath = $allEndpoints->groupBy(function ($endpoint) {
-            $path = str_replace("?}", "}", $endpoint->uri); // Remove optional parameters indicator in path
-            return '/' . ltrim($path, '/');
+            $path = str_replace('?}', '}', $endpoint->uri); // Remove optional parameters indicator in path
+
+            return '/'.mb_ltrim($path, '/');
         });
+
         return $groupedByPath->mapWithKeys(function (Collection $endpoints, $path) use ($groupedEndpoints) {
             $operations = $endpoints->mapWithKeys(function (OutputEndpointData $endpoint) use ($groupedEndpoints) {
                 $spec = [];
@@ -83,7 +87,7 @@ class OpenAPISpecWriter
                     $spec = $generator->pathItem($spec, $groupedEndpoints, $endpoint);
                 }
 
-                return [strtolower($endpoint->httpMethods[0]) => $spec];
+                return [mb_strtolower($endpoint->httpMethods[0]) => $spec];
             });
 
             $pathItem = $operations;
@@ -97,11 +101,18 @@ class OpenAPISpecWriter
             foreach ($this->generators as $generator) {
                 $parameters = $generator->pathParameters($parameters, $endpoints->all(), $urlParameterEndpoint->urlParameters);
             }
-            if (!empty($parameters)) {
+            if (! empty($parameters)) {
                 $pathItem['parameters'] = array_values($parameters);
             }
 
             return [$path => $pathItem];
         })->toArray();
+    }
+
+    protected function isOpenApi31OrLater(): bool
+    {
+        $version = $this->config->get('openapi.version', self::SPEC_VERSION);
+
+        return version_compare($version, '3.1.0', '>=');
     }
 }

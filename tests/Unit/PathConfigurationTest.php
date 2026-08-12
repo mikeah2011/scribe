@@ -5,6 +5,11 @@ namespace Knuckles\Scribe\Tests\Unit;
 use Knuckles\Scribe\Tests\BaseUnitTest;
 use Knuckles\Scribe\Tools\PathConfig;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class PathConfigurationTest extends BaseUnitTest
 {
     /** @test */

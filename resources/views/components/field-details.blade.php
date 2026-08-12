@@ -4,6 +4,7 @@
 <b style="line-height: 2;"><code>{{ $name }}</code></b>&nbsp;&nbsp;
 @if($type)<small>{{ $type }}</small>@endif&nbsp;
 @if($isInput && !$required)<i>optional</i>@endif &nbsp;
+@if($isInput && $deprecated)<i>deprecated</i>@endif &nbsp;
 @if($isInput && empty($hasChildren))
     @php
         $isList = Str::endsWith($type, '[]');
@@ -68,7 +69,7 @@
         $description .= " Example: `$exampleAsString`";
     }
 @endphp
-{!! Parsedown::instance()->text(trim($description)) !!}
+{!! Parsedown::instance()->text(trim((string) $description)) !!}
 @if(!empty($enumValues))
 Must be one of:
 <ul style="list-style-type: square;">{!! implode(" ", array_map(fn($val) => "<li><code>$val</code></li>", $enumValues)) !!}</ul>

@@ -8,7 +8,7 @@
 <p>
 @component('scribe::components.badges.auth', ['authenticated' => $endpoint->isAuthed()])
 @endcomponent
-@component('scribe::components.badges.deprecated', ['deprecated' => $endpoint->isDeprecated()])
+@component('scribe::components.badges.deprecated', ['deprecated' => $endpoint->metadata->deprecated])
 @endcomponent
 </p>
 
@@ -41,7 +41,7 @@
 {{ $header }}: {{ is_array($value) ? implode('; ', $value) : $value }}
 @endforeach </code></pre></details> @endif
         <pre>
-@if(is_string($response->content) && Str::startsWith($response->content, "<<binary>>"))
+@if($response->isBinary())
 <code>{!! u::trans("scribe::endpoint.responses.binary") !!} - {{ htmlentities(str_replace("<<binary>>", "", $response->content)) }}</code>
 @elseif($response->status == 204)
 <code>{!! u::trans("scribe::endpoint.responses.empty") !!}</code>
@@ -104,15 +104,16 @@
         @foreach($endpoint->headers as $name => $example)
             <?php
                 $htmlOptions = [];
-                if ($endpoint->isAuthed() && $metadata['auth']['location'] == 'header' && $metadata['auth']['name'] == $name) {
-                  $htmlOptions = [ 'class' => 'auth-value', ];
-                  }
+            if ($endpoint->isAuthed() && 'header' == $metadata['auth']['location'] && $metadata['auth']['name'] == $name) {
+                $htmlOptions = ['class' => 'auth-value'];
+            }
             ?>
             <div style="padding-left: 28px; clear: unset;">
                 @component('scribe::components.field-details', [
                   'name' => $name,
                   'type' => null,
                   'required' => true,
+                  'deprecated' => false,
                   'description' => null,
                   'example' => $example,
                   'endpointId' => $endpoint->endpointId(),
@@ -132,6 +133,7 @@
                   'name' => $parameter->name,
                   'type' => $parameter->type ?? 'string',
                   'required' => $parameter->required,
+                  'deprecated' => $parameter->deprecated,
                   'description' => $parameter->description,
                   'example' => $parameter->example ?? '',
                   'enumValues' => $parameter->enumValues,
@@ -148,15 +150,16 @@
         @foreach($endpoint->queryParameters as $attribute => $parameter)
                 <?php
                 $htmlOptions = [];
-                if ($endpoint->isAuthed() && $metadata['auth']['location'] == 'query' && $metadata['auth']['name'] == $attribute) {
-                    $htmlOptions = [ 'class' => 'auth-value', ];
-                }
-                ?>
+            if ($endpoint->isAuthed() && 'query' == $metadata['auth']['location'] && $metadata['auth']['name'] == $attribute) {
+                $htmlOptions = ['class' => 'auth-value'];
+            }
+            ?>
             <div style="padding-left: 28px; clear: unset;">
                 @component('scribe::components.field-details', [
                   'name' => $parameter->name,
                   'type' => $parameter->type,
                   'required' => $parameter->required,
+                  'deprecated' => $parameter->deprecated,
                   'description' => $parameter->description,
                   'example' => $parameter->example ?? '',
                   'enumValues' => $parameter->enumValues,

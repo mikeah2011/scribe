@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Knuckles\Camel;
 
 use Illuminate\Support\Arr;
@@ -9,7 +8,6 @@ use Knuckles\Camel\Output\OutputEndpointData;
 use Knuckles\Scribe\Tools\PathConfig;
 use Knuckles\Scribe\Tools\Utils;
 use Symfony\Component\Yaml\Yaml;
-
 
 class Camel
 {
@@ -26,9 +24,7 @@ class Camel
     /**
      * Load endpoints from the Camel files into groups (arrays).
      *
-     * @param string $folder
-     *
-     * @return array[] Each array is a group with keys including `name` and `endpoints`.
+     * @return array[] each array is a group with keys including `name` and `endpoints`
      */
     public static function loadEndpointsIntoGroups(string $folder): array
     {
@@ -36,6 +32,7 @@ class Camel
         self::loadEndpointsFromCamelFiles($folder, function (array $group) use (&$groups) {
             $groups[$group['name']] = $group;
         });
+
         return $groups;
     }
 
@@ -44,9 +41,7 @@ class Camel
      * Useful when we don't care about groups, but simply want to compare endpoints contents
      * to see if anything changed.
      *
-     * @param string $folder
-     *
-     * @return array[] List of endpoint arrays.
+     * @return array[] list of endpoint arrays
      */
     public static function loadEndpointsToFlatPrimitivesArray(string $folder): array
     {
@@ -56,6 +51,7 @@ class Camel
                 $endpoints[] = $endpoint;
             }
         });
+
         return $endpoints;
     }
 
@@ -67,7 +63,7 @@ class Camel
             if (
                 $object->isFile()
                 && Str::endsWith(basename($object->path()), '.yaml')
-                && !Str::startsWith(basename($object->path()), 'custom.')
+                && ! Str::startsWith(basename($object->path()), 'custom.')
             ) {
                 $group = Yaml::parseFile($object['path']);
                 $callback($group);
@@ -98,21 +94,21 @@ class Camel
 
     public static function doesGroupContainEndpoint(array $group, OutputEndpointData $endpoint): bool
     {
-        return boolval(Arr::first($group['endpoints'], function ($e) use ($endpoint) {
+        return (bool) (Arr::first($group['endpoints'], function ($e) use ($endpoint) {
             return $e->endpointId() === $endpoint->endpointId();
         }));
     }
 
     /**
-     * @param array[] $groupedEndpoints
-     * @param array $configFileOrder The order for groups that users specified in their config file.
-     *
+     * @param  array[]  $groupedEndpoints
+     * @param  array  $configFileOrder  the order for groups that users specified in their config file
      * @return array[]
      */
     public static function sortByConfigFileOrder(array $groupedEndpoints, array $configFileOrder): array
     {
         if (empty($configFileOrder)) {
             ksort($groupedEndpoints, SORT_NATURAL);
+
             return $groupedEndpoints;
         }
 
@@ -130,7 +126,7 @@ class Camel
                 ->sortKeysUsing(self::getOrderListComparator($demotedGroups));
 
             $nonWildcardGroups = array_merge($promotedGroups, $demotedGroups);
-            $wildCardOrderedGroups = $groupsCollection->filter(fn ($group, $groupName) => !in_array($groupName, $nonWildcardGroups))
+            $wildCardOrderedGroups = $groupsCollection->filter(fn ($group, $groupName) => ! in_array($groupName, $nonWildcardGroups))
                 ->sortKeysUsing(self::getOrderListComparator($demotedGroups));
 
             $groupedEndpoints = $promotedOrderedGroups->merge($wildCardOrderedGroups)
@@ -147,7 +143,7 @@ class Camel
                 $level2Order = Utils::getTopLevelItemsFromMixedConfigList($configFileOrder[$groupName]);
                 $sortedEndpoints = $sortedEndpoints->sortBy(
                     function (OutputEndpointData $e) use ($configFileOrder, $level2Order) {
-                        $endpointIdentifier = $e->httpMethods[0] . ' /' . $e->uri;
+                        $endpointIdentifier = $e->httpMethods[0].' /'.$e->uri;
 
                         // First, check if there's an ordering specified for the endpoint itself
                         $indexOfEndpointInL2Order = array_search($endpointIdentifier, $level2Order);
@@ -161,6 +157,7 @@ class Camel
                             // There's a subgroup order; check if there's an endpoints order within that
                             $orderOfEndpointsInSubgroup = $configFileOrder[$e->metadata->groupName][$e->metadata->subgroup] ?? [];
                             $indexOfEndpointInSubGroup = array_search($endpointIdentifier, $orderOfEndpointsInSubgroup);
+
                             return ($indexOfEndpointInSubGroup === false)
                                 ? $indexOfSubgroupInL2Order
                                 : ($indexOfSubgroupInL2Order + ($indexOfEndpointInSubGroup * 0.1));
@@ -183,9 +180,7 @@ class Camel
      * Prepare endpoints to be turned into HTML.
      * Map them into OutputEndpointData DTOs, and sort them by the specified order in the config file.
      *
-     * @param array<string,array[]> $groupedEndpoints
-     *
-     * @return array
+     * @param  array<string,array[]>  $groupedEndpoints
      */
     public static function prepareGroupedEndpointsForOutput(array $groupedEndpoints, array $configFileOrder = []): array
     {
@@ -194,19 +189,19 @@ class Camel
                 'name' => $group['name'],
                 'description' => $group['description'],
                 'endpoints' => array_map(
-                    fn(array $endpoint) => OutputEndpointData::fromExtractedEndpointArray($endpoint), $group['endpoints']
+                    fn (array $endpoint) => OutputEndpointData::fromExtractedEndpointArray($endpoint),
+                    $group['endpoints']
                 ),
             ];
         }, $groupedEndpoints);
-        return Camel::sortByConfigFileOrder($groups, $configFileOrder);
+
+        return self::sortByConfigFileOrder($groups, $configFileOrder);
     }
 
     /**
      * Given an $order list like ['first', 'second', ...], return a compare function that can be used to sort
      * a list of strings based on the order of items in $order.
      * Any strings not in the list are sorted with natural sort.
-     *
-     * @param array $order
      */
     protected static function getOrderListComparator(array $order): \Closure
     {

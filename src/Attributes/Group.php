@@ -11,8 +11,21 @@ class Group
         public mixed $name,
         public ?string $description = '',
         /** You can use the separate #[Authenticated] attribute, or pass authenticated: false to this. */
-        public ?bool   $authenticated = null,
-    ){
+        public ?bool $authenticated = null,
+    ) {}
+
+    public function toArray()
+    {
+        $data = [
+            'groupName' => $this->getName(),
+            'groupDescription' => $this->description,
+        ];
+
+        if (! is_null($this->authenticated)) {
+            $data['authenticated'] = $this->authenticated;
+        }
+
+        return $data;
     }
 
     protected function getName(): string
@@ -28,20 +41,5 @@ class Group
         throw new \InvalidArgumentException(
             'The name property of a group must be either a PHP Backed Enum or a string'
         );
-    }
-
-    public function toArray()
-    {
-        $data = [
-            "groupName" => $this->getName(),
-            "groupDescription" => $this->description,
-        ];
-
-        if (!is_null($this->authenticated)) {
-            $data["authenticated"] = $this->authenticated;
-        }
-
-        return $data;
-
     }
 }

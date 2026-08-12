@@ -2,12 +2,17 @@
 
 namespace Knuckles\Scribe\Tests\Strategies\Headers;
 
+use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
 use Knuckles\Scribe\Extracting\Strategies\Headers\GetFromHeaderTag;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Mpociot\Reflection\DocBlock\Tag;
 use PHPUnit\Framework\TestCase;
-use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class GetFromHeaderTagTest extends TestCase
 {
     use ArraySubsetAsserts;
@@ -29,5 +34,4 @@ class GetFromHeaderTagTest extends TestCase
         $this->assertArrayHasKey('Some-Custom', $results);
         $this->assertNotEmpty($results['Some-Custom']);
     }
-
 }

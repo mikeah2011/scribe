@@ -2,8 +2,9 @@
 
 namespace Knuckles\Scribe\Tests\Strategies\Responses;
 
+use Illuminate\Database\Eloquent\Factory;
+use Illuminate\Database\Eloquent\LegacyFactoryServiceProvider;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Application;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Schema;
 use Knuckles\Camel\Extraction\ExtractedEndpointData;
@@ -12,9 +13,10 @@ use Knuckles\Scribe\Attributes\ResponseFromApiResource;
 use Knuckles\Scribe\Attributes\ResponseFromFile;
 use Knuckles\Scribe\Attributes\ResponseFromTransformer;
 use Knuckles\Scribe\Extracting\Strategies\Responses\UseResponseAttributes;
-use Knuckles\Scribe\ScribeServiceProvider;
 use Knuckles\Scribe\Tests\BaseLaravelTest;
 use Knuckles\Scribe\Tests\Fixtures\TestModel;
+use Knuckles\Scribe\Tests\Fixtures\TestOrderOwner;
+use Knuckles\Scribe\Tests\Fixtures\TestOrderOwnerApiResource;
 use Knuckles\Scribe\Tests\Fixtures\TestPet;
 use Knuckles\Scribe\Tests\Fixtures\TestTransformer;
 use Knuckles\Scribe\Tests\Fixtures\TestUser;
@@ -22,26 +24,22 @@ use Knuckles\Scribe\Tests\Fixtures\TestUserApiResource;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Tools\Utils;
 use League\Fractal\Pagination\IlluminatePaginatorAdapter;
-use ReflectionClass;
+use PHPUnit\Framework\Attributes\TestWith;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class UseResponseAttributesTest extends BaseLaravelTest
 {
-    protected function getPackageProviders($app)
-    {
-        $providers = parent::getPackageProviders($app);
-        if (class_exists(\Illuminate\Database\Eloquent\LegacyFactoryServiceProvider::class)) {
-            $providers[] = \Illuminate\Database\Eloquent\LegacyFactoryServiceProvider ::class;
-        }
-        return $providers;
-    }
-
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 
         $this->setConfig(['database_connections_to_transact' => []]);
 
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->define(TestUser::class, function () {
             return [
                 'id' => 4,
@@ -50,8 +48,8 @@ class UseResponseAttributesTest extends BaseLaravelTest
                 'email' => 'a@b.com',
             ];
         });
-        $factory->state(TestUser::class, 'state1', ["state1" => true]);
-        $factory->state(TestUser::class, 'random-state', ["random-state" => true]);
+        $factory->state(TestUser::class, 'state1', ['state1' => true]);
+        $factory->state(TestUser::class, 'random-state', ['random-state' => true]);
         $factory->define(TestPet::class, function () {
             return [
                 'id' => 1,
@@ -64,34 +62,34 @@ class UseResponseAttributesTest extends BaseLaravelTest
     /** @test */
     public function can_parse_plain_response_attributes()
     {
-        $results = $this->fetch($this->endpoint("plainResponseAttributes"));
+        $results = $this->fetch($this->endpoint('plainResponseAttributes'));
 
         $this->assertArraySubset([
             [
                 'status' => 200,
-                'content' => json_encode(["all" => "good"]),
-                "description" => "Success"
+                'content' => json_encode(['all' => 'good']),
+                'description' => 'Success',
             ],
             [
                 'status' => 201,
-                'content' => json_encode(["all" => "good"]),
+                'content' => json_encode(['all' => 'good']),
             ],
             [
                 'status' => 404,
                 'content' => null,
-            ]
+            ],
         ], $results);
     }
 
     /** @test */
     public function can_parse_responsefile_attributes()
     {
-        $results = $this->fetch($this->endpoint("responseFileAttributes"));
+        $results = $this->fetch($this->endpoint('responseFileAttributes'));
 
         $this->assertArraySubset([
             [
                 'status' => 401,
-                'content' => json_encode(["message" => "Unauthorized", "merge" => "this"]),
+                'content' => json_encode(['message' => 'Unauthorized', 'merge' => 'this']),
             ],
         ], $results);
     }
@@ -99,7 +97,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
     /** @test */
     public function can_parse_apiresource_attributes()
     {
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->afterMaking(TestUser::class, function (TestUser $user, $faker) {
             if ($user->id === 4) {
                 $child = Utils::getModelFactory(TestUser::class)->make(['id' => 5, 'parent_id' => 4]);
@@ -107,7 +105,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
             }
         });
 
-        $results = $this->fetch($this->endpoint("apiResourceAttributes"));
+        $results = $this->fetch($this->endpoint('apiResourceAttributes'));
 
         $this->assertArraySubset([
             [
@@ -130,19 +128,19 @@ class UseResponseAttributesTest extends BaseLaravelTest
                         ],
                     ],
                     'links' => [
-                        "first" => '/?page=1',
-                        "last" => null,
-                        "prev" => null,
-                        "next" => '/?page=2',
+                        'first' => '/?page=1',
+                        'last' => null,
+                        'prev' => null,
+                        'next' => '/?page=2',
                     ],
-                    "meta" => [
-                        "current_page" => 1,
-                        "from" => 1,
-                        "path" => '/',
-                        "per_page" => 1,
-                        "to" => 1,
+                    'meta' => [
+                        'current_page' => 1,
+                        'from' => 1,
+                        'path' => '/',
+                        'per_page' => 1,
+                        'to' => 1,
                     ],
-                    "a" => "b",
+                    'a' => 'b',
                 ]),
             ],
         ], $results);
@@ -151,7 +149,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
     /** @test */
     public function can_parse_apiresource_attributes_with_no_model_specified()
     {
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->afterMaking(TestUser::class, function (TestUser $user, $faker) {
             if ($user->id === 4) {
                 $child = Utils::getModelFactory(TestUser::class)->make(['id' => 5, 'parent_id' => 4]);
@@ -159,7 +157,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
             }
         });
 
-        $results = $this->fetch($this->endpoint("apiResourceAttributesWithNoModel"));
+        $results = $this->fetch($this->endpoint('apiResourceAttributesWithNoModel'));
 
         $this->assertArraySubset([
             [
@@ -182,19 +180,19 @@ class UseResponseAttributesTest extends BaseLaravelTest
                         ],
                     ],
                     'links' => [
-                        "first" => '/?page=1',
-                        "last" => null,
-                        "prev" => null,
-                        "next" => '/?page=2',
+                        'first' => '/?page=1',
+                        'last' => null,
+                        'prev' => null,
+                        'next' => '/?page=2',
                     ],
-                    "meta" => [
-                        "current_page" => 1,
-                        "from" => 1,
-                        "path" => '/',
-                        "per_page" => 1,
-                        "to" => 1,
+                    'meta' => [
+                        'current_page' => 1,
+                        'from' => 1,
+                        'path' => '/',
+                        'per_page' => 1,
+                        'to' => 1,
                     ],
-                    "a" => "b",
+                    'a' => 'b',
                 ]),
             ],
         ], $results);
@@ -203,27 +201,27 @@ class UseResponseAttributesTest extends BaseLaravelTest
     /** @test */
     public function can_parse_transformer_attributes()
     {
-        $results = $this->fetch($this->endpoint("transformerAttributes"));
+        $results = $this->fetch($this->endpoint('transformerAttributes'));
 
         $this->assertArraySubset([
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
+                    'data' => [
                         [
-                            "id" => 1,
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
+                            'id' => 1,
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
                         ],
                     ],
                     'meta' => [
-                        "pagination" => [
-                            "total" => 2,
-                            "count" => 1,
-                            "per_page" => 1,
-                            "current_page" => 1,
-                            "total_pages" => 2,
-                            "links" => ["next" => "/?page=2"],
+                        'pagination' => [
+                            'total' => 2,
+                            'count' => 1,
+                            'per_page' => 1,
+                            'current_page' => 1,
+                            'total_pages' => 2,
+                            'links' => ['next' => '/?page=2'],
                         ],
                     ],
                 ]),
@@ -234,7 +232,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
     /** @test */
     public function can_parse_apiresource_attributes_with_cursor_pagination()
     {
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->afterMaking(TestUser::class, function (TestUser $user, $faker) {
             if ($user->id === 4) {
                 $child = Utils::getModelFactory(TestUser::class)->make(['id' => 5, 'parent_id' => 4]);
@@ -242,8 +240,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
             }
         });
 
-        $results = $this->fetch($this->endpoint("apiResourceAttributesWithCursorPaginate"));
-
+        $results = $this->fetch($this->endpoint('apiResourceAttributesWithCursorPaginate'));
 
         $nextCursor = base64_encode(json_encode(['_pointsToNextItems' => true]));
         $this->assertArraySubset([
@@ -265,17 +262,17 @@ class UseResponseAttributesTest extends BaseLaravelTest
                         ],
                     ],
                     'links' => [
-                        "first" => null,
-                        "last" => null,
-                        "prev" => null,
-                        "next" => "/?cursor={$nextCursor}",
+                        'first' => null,
+                        'last' => null,
+                        'prev' => null,
+                        'next' => "/?cursor={$nextCursor}",
                     ],
-                    "meta" => [
-                        "path" => '/',
+                    'meta' => [
+                        'path' => '/',
                         'per_page' => 1,
                         'next_cursor' => $nextCursor,
                         'prev_cursor' => null,
-                    ]
+                    ],
                 ]),
             ],
         ], $results);
@@ -292,7 +289,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
             $table->integer('parent_id')->nullable();
         });
 
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->afterCreating(TestUser::class, function (TestUser $user, $faker) {
             if ($user->id === 4) {
                 Utils::getModelFactory(TestUser::class)->create(['id' => 5, 'parent_id' => 4]);
@@ -300,21 +297,21 @@ class UseResponseAttributesTest extends BaseLaravelTest
         });
         $documentationConfig = ['examples' => ['models_source' => ['factoryCreate']]];
 
-        $results = $this->fetch($this->endpoint("apiResourceAttributesIncludeChildren"), $documentationConfig);
+        $results = $this->fetch($this->endpoint('apiResourceAttributesIncludeChildren'), $documentationConfig);
         $this->assertArraySubset([
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
-                        "id" => 4,
-                        "name" => "Tested Again",
-                        "email" => "a@b.com",
-                        "children" => [
+                    'data' => [
+                        'id' => 4,
+                        'name' => 'Tested Again',
+                        'email' => 'a@b.com',
+                        'children' => [
                             [
-                                "id" => 5,
-                                "name" => "Tested Again",
-                                "email" => "a@b.com",
-                            ]
+                                'id' => 5,
+                                'name' => 'Tested Again',
+                                'email' => 'a@b.com',
+                            ],
                         ],
                     ],
                 ]),
@@ -322,6 +319,44 @@ class UseResponseAttributesTest extends BaseLaravelTest
         ], $results);
     }
 
+    /**
+     * @test
+     *
+     * @testWith ["factoryCreate", true]
+     *           ["factoryCreateQuietly", false]
+     */
+    public function it_can_suppress_model_events_using_factory_create_quietly(string $modelFactoryStrategy, bool $expectModelEvents)
+    {
+        Schema::create('test_users', function (Blueprint $table) {
+            $table->id();
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('email');
+            $table->integer('parent_id')->nullable();
+        });
+
+        $modelEventFired = false;
+        TestUser::creating(function () use (&$modelEventFired) {
+            $modelEventFired = true;
+        });
+        $documentationConfig = ['examples' => ['models_source' => [$modelFactoryStrategy]]];
+
+        $results = $this->fetch($this->endpoint('apiResourceAttributesIncludeChildren'), $documentationConfig);
+        $this->assertArraySubset([
+            [
+                'status' => 200,
+                'content' => json_encode([
+                    'data' => [
+                        'id' => 4,
+                        'name' => 'Tested Again',
+                        'email' => 'a@b.com',
+                        'children' => [],
+                    ],
+                ]),
+            ],
+        ], $results);
+        $this->assertSame($expectModelEvents, $modelEventFired);
+    }
 
     /** @test */
     public function can_parse_apiresource_attributes_and_load_children_and_children_count_using_factory_create()
@@ -334,7 +369,7 @@ class UseResponseAttributesTest extends BaseLaravelTest
             $table->integer('parent_id')->nullable();
         });
 
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->afterCreating(TestUser::class, function (TestUser $user, $faker) {
             if ($user->id === 4) {
                 Utils::getModelFactory(TestUser::class)->create(['id' => 5, 'parent_id' => 4]);
@@ -342,21 +377,21 @@ class UseResponseAttributesTest extends BaseLaravelTest
         });
         $documentationConfig = ['examples' => ['models_source' => ['factoryCreate']]];
 
-        $results = $this->fetch($this->endpoint("apiResourceAttributesIncludeChildrenAndChildrenCount"), $documentationConfig);
+        $results = $this->fetch($this->endpoint('apiResourceAttributesIncludeChildrenAndChildrenCount'), $documentationConfig);
         $this->assertArraySubset([
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
-                        "id" => 4,
-                        "name" => "Tested Again",
-                        "email" => "a@b.com",
-                        "children" => [
+                    'data' => [
+                        'id' => 4,
+                        'name' => 'Tested Again',
+                        'email' => 'a@b.com',
+                        'children' => [
                             [
-                                "id" => 5,
-                                "name" => "Tested Again",
-                                "email" => "a@b.com",
-                            ]
+                                'id' => 5,
+                                'name' => 'Tested Again',
+                                'email' => 'a@b.com',
+                            ],
                         ],
                         'children_count' => 1,
                     ],
@@ -365,76 +400,244 @@ class UseResponseAttributesTest extends BaseLaravelTest
         ], $results);
     }
 
+    /** @test */
+    public function can_parse_apiresource_attributes_and_load_single_nested_belongs_to()
+    {
+        Schema::create('test_order_statuses', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        Schema::create('test_order_deliveries', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('user_id')->nullable();
+        });
+        Schema::create('test_orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('delivery_id')->nullable();
+        });
+        Schema::create('test_order_owners', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->nullable();
+            $table->foreignId('status_id')->nullable();
+        });
+
+        $documentationConfig = ['examples' => ['models_source' => ['factoryCreate']]];
+
+        $results = $this->fetch($this->endpoint('apiResourceAttributesWithSingleNestedBelongsTo'), $documentationConfig);
+
+        $decoded = json_decode($results[0]['content'], true);
+        $this->assertNotNull($decoded['data']['order']['status'], 'order.status should not be null');
+        $this->assertEquals('pending', $decoded['data']['order']['status']['name']);
+        $this->assertNull($decoded['data']['order']['delivery'], 'order.delivery should be null when not requested');
+    }
+
+    /** @test */
+    public function can_parse_apiresource_attributes_and_load_mixed_direct_and_nested_belongs_to()
+    {
+        Schema::create('test_order_statuses', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        Schema::create('test_order_deliveries', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('user_id')->nullable();
+        });
+        Schema::create('test_orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('delivery_id')->nullable();
+        });
+        Schema::create('test_order_owners', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->nullable();
+            $table->foreignId('status_id')->nullable();
+        });
+
+        $documentationConfig = ['examples' => ['models_source' => ['factoryCreate']]];
+
+        $results = $this->fetch($this->endpoint('apiResourceAttributesWithMixedDirectAndNestedRelations'), $documentationConfig);
+
+        $decoded = json_decode($results[0]['content'], true);
+        $this->assertNotNull($decoded['data']['status'], 'direct status on owner should not be null');
+        $this->assertEquals('pending', $decoded['data']['status']['name']);
+        $this->assertNotNull($decoded['data']['order']['status'], 'order.status should not be null');
+        $this->assertEquals('pending', $decoded['data']['order']['status']['name']);
+        $this->assertNotNull($decoded['data']['order']['delivery'], 'order.delivery should not be null');
+        $this->assertEquals('express', $decoded['data']['order']['delivery']['name']);
+    }
+
+    /** @test */
+    public function can_parse_apiresource_attributes_and_load_three_levels_of_nesting()
+    {
+        Schema::create('test_users', function (Blueprint $table) {
+            $table->id();
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('email');
+            $table->integer('parent_id')->nullable();
+        });
+        Schema::create('test_order_statuses', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        Schema::create('test_order_delivery_users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        Schema::create('test_order_deliveries', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('user_id')->nullable();
+        });
+        Schema::create('test_orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('delivery_id')->nullable();
+        });
+        Schema::create('test_order_owners', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->nullable();
+            $table->foreignId('status_id')->nullable();
+        });
+
+        $documentationConfig = ['examples' => ['models_source' => ['factoryCreate']]];
+
+        $results = $this->fetch($this->endpoint('apiResourceAttributesWithThreeLevelsOfNesting'), $documentationConfig);
+
+        $decoded = json_decode($results[0]['content'], true);
+        $this->assertNotNull($decoded['data']['order']['delivery']['status'], 'order.delivery.status should not be null');
+        $this->assertEquals('pending', $decoded['data']['order']['delivery']['status']['name']);
+        $this->assertNotNull($decoded['data']['order']['delivery']['user'], 'order.delivery.user should not be null');
+        $this->assertEquals('john', $decoded['data']['order']['delivery']['user']['name']);
+    }
+
+    /** @test */
+    public function can_parse_apiresource_attributes_and_load_multiple_nested_belongs_to_with_shared_parent()
+    {
+        Schema::create('test_order_statuses', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        Schema::create('test_order_deliveries', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('user_id')->nullable();
+        });
+        Schema::create('test_orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('status_id')->nullable();
+            $table->foreignId('delivery_id')->nullable();
+        });
+        Schema::create('test_order_owners', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->nullable();
+            $table->foreignId('status_id')->nullable();
+        });
+
+        $documentationConfig = ['examples' => ['models_source' => ['factoryCreate']]];
+
+        $results = $this->fetch($this->endpoint('apiResourceAttributesWithNestedBelongsToRelations'), $documentationConfig);
+
+        $decoded = json_decode($results[0]['content'], true);
+        $this->assertNotNull($decoded['data']['order']['status'], 'order.status should not be null — both BelongsTo nested relations must be loaded');
+        $this->assertNotNull($decoded['data']['order']['delivery'], 'order.delivery should not be null — both BelongsTo nested relations must be loaded');
+        $this->assertEquals('pending', $decoded['data']['order']['status']['name']);
+        $this->assertEquals('express', $decoded['data']['order']['delivery']['name']);
+    }
+
+    protected function getPackageProviders($app)
+    {
+        $providers = parent::getPackageProviders($app);
+        if (class_exists(LegacyFactoryServiceProvider::class)) {
+            $providers[] = LegacyFactoryServiceProvider::class;
+        }
+
+        return $providers;
+    }
+
     protected function fetch($endpoint, array $documentationConfig = []): array
     {
-        $strategy = new UseResponseAttributes(new DocumentationConfig([]));
+        $strategy = new UseResponseAttributes(new DocumentationConfig($documentationConfig));
+
         return $strategy($endpoint, []);
     }
 
     protected function endpoint(string $method): ExtractedEndpointData
     {
-        $endpoint = new class extends ExtractedEndpointData {
+        $endpoint = new class extends ExtractedEndpointData
+        {
             public function __construct(array $parameters = []) {}
         };
-        $endpoint->controller = new ReflectionClass(ResponseAttributesTestController::class);
+        $endpoint->controller = new \ReflectionClass(ResponseAttributesTestController::class);
         $endpoint->method = $endpoint->controller->getMethod($method);
-        $endpoint->route = new Route(['POST'], "/somethingRandom", ['uses' => [ResponseAttributesTestController::class, $method]]);
+        $endpoint->route = new Route(['POST'], '/somethingRandom', ['uses' => [ResponseAttributesTestController::class, $method]]);
+
         return $endpoint;
     }
 }
 
 class ResponseAttributesTestController
 {
-    #[Response(["all" => "good"], 200, "Success")]
+    #[Response(['all' => 'good'], 200, 'Success')]
     #[Response('{"all":"good"}', 201)]
     #[Response(status: 404)]
-    public function plainResponseAttributes()
-    {
+    public function plainResponseAttributes() {}
 
-    }
+    #[ResponseFromFile('tests/Fixtures/response_error_test.json', 401, ['merge' => 'this'])]
+    public function responseFileAttributes() {}
 
-    #[ResponseFromFile("tests/Fixtures/response_error_test.json", 401, ["merge" => "this"])]
-    public function responseFileAttributes()
-    {
+    #[ResponseFromApiResource(
+        TestUserApiResource::class,
+        TestUser::class,
+        collection: true,
+        factoryStates: ['state1', 'random-state'],
+        simplePaginate: 1,
+        additional: ['a' => 'b']
+    )]
+    public function apiResourceAttributes() {}
 
-    }
+    #[ResponseFromApiResource(
+        TestUserApiResource::class,
+        collection: true,
+        factoryStates: ['state1', 'random-state'],
+        simplePaginate: 1,
+        additional: ['a' => 'b']
+    )]
+    public function apiResourceAttributesWithNoModel() {}
 
-    #[ResponseFromApiResource(TestUserApiResource::class, TestUser::class, collection: true,
-        factoryStates: ["state1", "random-state"], simplePaginate: 1, additional: ["a" => "b"])]
-    public function apiResourceAttributes()
-    {
-
-    }
-
-    #[ResponseFromApiResource(TestUserApiResource::class, collection: true,
-        factoryStates: ["state1", "random-state"], simplePaginate: 1, additional: ["a" => "b"])]
-    public function apiResourceAttributesWithNoModel()
-    {
-
-    }
-
-    #[ResponseFromTransformer(TestTransformer::class, TestModel::class, collection: true,
-        paginate: [IlluminatePaginatorAdapter::class, 1])]
-    public function transformerAttributes()
-    {
-
-    }
+    #[ResponseFromTransformer(
+        TestTransformer::class,
+        TestModel::class,
+        collection: true,
+        paginate: [IlluminatePaginatorAdapter::class, 1]
+    )]
+    public function transformerAttributes() {}
 
     #[ResponseFromApiResource(TestUserApiResource::class, collection: true, cursorPaginate: 1)]
-    public function apiResourceAttributesWithCursorPaginate()
-    {
-
-    }
+    public function apiResourceAttributesWithCursorPaginate() {}
 
     #[ResponseFromApiResource(TestUserApiResource::class, with: ['children'], withCount: ['children'])]
-    public function apiResourceAttributesIncludeChildrenAndChildrenCount()
-    {
-
-    }
+    public function apiResourceAttributesIncludeChildrenAndChildrenCount() {}
 
     #[ResponseFromApiResource(TestUserApiResource::class, with: ['children'])]
-    public function apiResourceAttributesIncludeChildren()
-    {
+    public function apiResourceAttributesIncludeChildren() {}
 
-    }
+    #[ResponseFromApiResource(TestOrderOwnerApiResource::class, TestOrderOwner::class, with: ['order.status', 'order.delivery'])]
+    public function apiResourceAttributesWithNestedBelongsToRelations() {}
+
+    #[ResponseFromApiResource(TestOrderOwnerApiResource::class, TestOrderOwner::class, with: ['order.status'])]
+    public function apiResourceAttributesWithSingleNestedBelongsTo() {}
+
+    #[ResponseFromApiResource(TestOrderOwnerApiResource::class, TestOrderOwner::class, with: ['order.status', 'status', 'order.delivery'])]
+    public function apiResourceAttributesWithMixedDirectAndNestedRelations() {}
+
+    #[ResponseFromApiResource(TestOrderOwnerApiResource::class, TestOrderOwner::class, with: ['order.delivery.status', 'order.delivery.user'])]
+    public function apiResourceAttributesWithThreeLevelsOfNesting() {}
 }

@@ -2,12 +2,18 @@
 
 namespace Knuckles\Scribe\Tests\Strategies\Responses;
 
+use Illuminate\Database\Eloquent\Factory;
 use Knuckles\Scribe\Extracting\Strategies\Responses\UseTransformerTags;
 use Knuckles\Scribe\Tests\BaseLaravelTest;
 use Knuckles\Scribe\Tests\Fixtures\TestUser;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Mpociot\Reflection\DocBlock\Tag;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class UseTransformerTagsTest extends BaseLaravelTest
 {
     protected function setUp(): void
@@ -17,11 +23,12 @@ class UseTransformerTagsTest extends BaseLaravelTest
     }
 
     /**
-     * @param $serializer
-     * @param $expected
-     *
      * @test
+     *
      * @dataProvider serializerAndExpected
+     *
+     * @param  mixed  $serializer
+     * @param  mixed  $expected
      */
     public function can_parse_transformer_tag($serializer, $expected)
     {
@@ -41,6 +48,35 @@ class UseTransformerTagsTest extends BaseLaravelTest
         ], $results);
     }
 
+    public static function serializerAndExpected()
+    {
+        return [
+            [
+                null,
+                json_encode([
+                    'data' => [
+                        'id' => 1,
+                        'description' => 'Welcome on this test versions',
+                        'name' => 'TestName',
+                    ],
+                ]),
+            ],
+            [
+                'League\Fractal\Serializer\JsonApiSerializer',
+                json_encode([
+                    'data' => [
+                        'type' => null,
+                        'id' => '1',
+                        'attributes' => [
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
+                        ],
+                    ],
+                ]),
+            ],
+        ];
+    }
+
     /** @test */
     public function can_parse_transformer_tag_with_model()
     {
@@ -55,10 +91,10 @@ class UseTransformerTagsTest extends BaseLaravelTest
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
-                        "id" => 1,
-                        "description" => "Welcome on this test versions",
-                        "name" => "TestName",
+                    'data' => [
+                        'id' => 1,
+                        'description' => 'Welcome on this test versions',
+                        'name' => 'TestName',
                     ],
                 ]),
             ],
@@ -68,12 +104,12 @@ class UseTransformerTagsTest extends BaseLaravelTest
     /** @test */
     public function can_parse_transformer_tag_with_model_and_factory_states()
     {
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->define(TestUser::class, function () {
             return ['id' => 3, 'name' => 'myname'];
         });
-        $factory->state(TestUser::class, 'state1', ["state1" => true]);
-        $factory->state(TestUser::class, 'random-state', ["random-state" => true]);
+        $factory->state(TestUser::class, 'state1', ['state1' => true]);
+        $factory->state(TestUser::class, 'random-state', ['random-state' => true]);
 
         $strategy = new UseTransformerTags(new DocumentationConfig([]));
         $tags = [
@@ -86,11 +122,11 @@ class UseTransformerTagsTest extends BaseLaravelTest
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
-                        "id" => 3,
-                        "name" => "myname",
-                        "state1" => true,
-                        "random-state" => true,
+                    'data' => [
+                        'id' => 3,
+                        'name' => 'myname',
+                        'state1' => true,
+                        'random-state' => true,
                     ],
                 ]),
             ],
@@ -110,15 +146,14 @@ class UseTransformerTagsTest extends BaseLaravelTest
             [
                 'status' => 201,
                 'content' => json_encode([
-                    "data" => [
-                        "id" => 1,
-                        "description" => "Welcome on this test versions",
-                        "name" => "TestName",
+                    'data' => [
+                        'id' => 1,
+                        'description' => 'Welcome on this test versions',
+                        'name' => 'TestName',
                     ],
                 ]),
             ],
         ], $results);
-
     }
 
     /** @test */
@@ -134,28 +169,26 @@ class UseTransformerTagsTest extends BaseLaravelTest
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
+                    'data' => [
                         [
-                            "id" => 1,
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
+                            'id' => 1,
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
                         ],
                         [
-                            "id" => 1,
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
+                            'id' => 1,
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
                         ],
                     ],
                 ]),
             ],
         ], $results);
-
     }
 
     /** @test */
     public function can_parse_transformercollection_tag_with_model()
     {
-
         $strategy = new UseTransformerTags(new DocumentationConfig([]));
         $tags = [
             new Tag('transformercollection', '\Knuckles\Scribe\Tests\Fixtures\TestTransformer'),
@@ -167,16 +200,16 @@ class UseTransformerTagsTest extends BaseLaravelTest
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
+                    'data' => [
                         [
-                            "id" => 1,
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
+                            'id' => 1,
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
                         ],
                         [
-                            "id" => 1,
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
+                            'id' => 1,
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
                         ],
                     ],
                 ]),
@@ -187,7 +220,6 @@ class UseTransformerTagsTest extends BaseLaravelTest
     /** @test */
     public function can_parse_transformercollection_tag_with_model_and_paginator_data()
     {
-
         $strategy = new UseTransformerTags(new DocumentationConfig([]));
         $tags = [
             new Tag('transformercollection', '\Knuckles\Scribe\Tests\Fixtures\TestTransformer'),
@@ -200,54 +232,25 @@ class UseTransformerTagsTest extends BaseLaravelTest
             [
                 'status' => 200,
                 'content' => json_encode([
-                    "data" => [
+                    'data' => [
                         [
-                            "id" => 1,
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
+                            'id' => 1,
+                            'description' => 'Welcome on this test versions',
+                            'name' => 'TestName',
                         ],
                     ],
                     'meta' => [
-                        "pagination" => [
-                            "total" => 2,
-                            "count" => 1,
-                            "per_page" => 1,
-                            "current_page" => 1,
-                            "total_pages" => 2,
-                            "links" => ["next" => "/?page=2"],
+                        'pagination' => [
+                            'total' => 2,
+                            'count' => 1,
+                            'per_page' => 1,
+                            'current_page' => 1,
+                            'total_pages' => 2,
+                            'links' => ['next' => '/?page=2'],
                         ],
                     ],
                 ]),
             ],
         ], $results);
-    }
-
-    public static function serializerAndExpected()
-    {
-        return [
-            [
-                null,
-                json_encode([
-                    "data" => [
-                        "id" => 1,
-                        "description" => "Welcome on this test versions",
-                        "name" => "TestName",
-                    ],
-                ]),
-            ],
-            [
-                'League\Fractal\Serializer\JsonApiSerializer',
-                json_encode([
-                    "data" => [
-                        "type" => null,
-                        "id" => "1",
-                        "attributes" => [
-                            "description" => "Welcome on this test versions",
-                            "name" => "TestName",
-                        ],
-                    ],
-                ]),
-            ],
-        ];
     }
 }

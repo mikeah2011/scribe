@@ -6,13 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class TestUser extends Model
 {
-    protected $guarded = [];
-
     public $timestamps = false;
+
+    protected $guarded = [];
 
     public function children()
     {
-        return $this->hasMany(TestUser::class, 'parent_id');
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     public function pets()

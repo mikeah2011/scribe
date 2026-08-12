@@ -13,7 +13,11 @@ use Knuckles\Scribe\Tools\DocumentationConfig;
 use Knuckles\Scribe\Writing\OpenAPISpecWriter;
 
 /**
- * See https://swagger.io/specification/
+ * See https://swagger.io/specification/.
+ *
+ * @internal
+ *
+ * @coversNothing
  */
 class OpenAPISpecWriterTest extends BaseUnitTest
 {
@@ -57,10 +61,10 @@ class OpenAPISpecWriterTest extends BaseUnitTest
         $this->assertCount(1, $results['paths']['/path1/path2']);
         $this->assertArrayHasKey('get', $results['paths']['/path1']);
         $this->assertArrayHasKey('post', $results['paths']['/path1']);
-        $this->assertArrayHasKey(strtolower($endpointData3->httpMethods[0]), $results['paths']['/path1/path2']);
+        $this->assertArrayHasKey(mb_strtolower($endpointData3->httpMethods[0]), $results['paths']['/path1/path2']);
 
         collect([$endpointData1, $endpointData2, $endpointData3])->each(function (OutputEndpointData $endpoint) use ($groups, $results) {
-            $endpointSpec = $results['paths']['/' . $endpoint->uri][strtolower($endpoint->httpMethods[0])];
+            $endpointSpec = $results['paths']['/'.$endpoint->uri][mb_strtolower($endpoint->httpMethods[0])];
 
             $tags = $endpointSpec['tags'];
             $containingGroup = Arr::first($groups, function ($group) use ($endpoint) {
@@ -79,7 +83,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
         $endpointData1 = $this->createMockEndpointData(['uri' => 'path1', 'httpMethods' => ['GET'], 'metadata.authenticated' => true]);
         $endpointData2 = $this->createMockEndpointData(['uri' => 'path1', 'httpMethods' => ['POST'], 'metadata.authenticated' => false]);
         $groups = [$this->createGroup([$endpointData1, $endpointData2])];
-        $extraInfo = "When stuck trying to authenticate, have a coffee!";
+        $extraInfo = 'When stuck trying to authenticate, have a coffee!';
         $config = array_merge($this->config, [
             'auth' => [
                 'enabled' => true,
@@ -140,8 +144,68 @@ class OpenAPISpecWriterTest extends BaseUnitTest
         $this->assertIsArray($results['paths']);
         $this->assertCount(2, $results['paths']);
         $this->assertArrayHasKey('deprecated', $results['paths']['/path1']['get']);
-        $this->assertTrue(true, $results['paths']['/path1']['get']['deprecated']);
+        $this->assertTrue($results['paths']['/path1']['get']['deprecated']);
         $this->assertArrayNotHasKey('deprecated', $results['paths']['/path2']['get']);
+    }
+
+    /** @test */
+    public function adds_deprecated_params_info_correctly()
+    {
+        $endpointData1 = $this->createMockEndpointData([
+            'uri' => 'path1',
+            'httpMethods' => ['GET'],
+            'queryParameters' => [
+                'param' => [
+                    'description' => 'A query param',
+                    'required' => false,
+                    'example' => 'hahoho',
+                    'type' => 'string',
+                    'name' => 'param',
+                    'deprecated' => true,
+                ],
+            ],
+        ]);
+        $endpointData2 = $this->createMockEndpointData([
+            'uri' => 'path2',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'param' => [
+                    'description' => 'A body param',
+                    'required' => false,
+                    'example' => 'hahoho',
+                    'type' => 'string',
+                    'name' => 'param',
+                    'deprecated' => true,
+                ],
+                'array_param' => [
+                    'description' => 'A body array_param',
+                    'required' => false,
+                    'type' => 'array',
+                    'name' => 'array_param',
+                    'deprecated' => true,
+                ],
+                'object_param' => [
+                    'description' => 'A body object_param',
+                    'required' => false,
+                    'type' => 'object',
+                    'name' => 'object_param',
+                    'deprecated' => true,
+                ],
+            ],
+        ]);
+        $groups = [$this->createGroup([$endpointData1, $endpointData2])];
+
+        $results = $this->generate($groups);
+
+        $this->assertIsArray($results['paths']);
+        $this->assertCount(2, $results['paths']);
+        $this->assertTrue($results['paths']['/path1']['get']['parameters'][0]['deprecated']);
+
+        $properties = $results['paths']['/path2']['post']['requestBody']['content']['application/json']['schema']['properties'];
+        $this->assertCount(3, $properties);
+        $this->assertTrue($properties['param']['deprecated']);
+        $this->assertTrue($properties['array_param']['deprecated']);
+        $this->assertTrue($properties['object_param']['deprecated']);
     }
 
     /** @test */
@@ -228,11 +292,10 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'example' => 'hahoho',
                     'type' => 'string',
                     'name' => 'param',
-                    'nullable' => false
                 ],
             ],
         ]);
-        $endpointData2 = $this->createMockEndpointData(['headers' => [], 'httpMethods' => ['POST'], 'uri' => '/path1',]);
+        $endpointData2 = $this->createMockEndpointData(['headers' => [], 'httpMethods' => ['POST'], 'uri' => '/path1']);
         $groups = [$this->createGroup([$endpointData1, $endpointData2])];
 
         $results = $this->generate($groups);
@@ -250,13 +313,12 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 'type' => 'string',
                 'description' => 'A query param',
                 'example' => 'hahoho',
-                'nullable' => false
             ],
         ], $results['paths']['/path1']['get']['parameters'][0]);
     }
 
     /** @test */
-    public function adds_body_parameters_correctly_as_requestBody_on_operation_object()
+    public function adds_body_parameters_correctly_as_request_body_on_operation_object()
     {
         $endpointData1 = $this->createMockEndpointData([
             'httpMethods' => ['POST'],
@@ -268,7 +330,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => false,
                     'example' => 'hahoho',
                     'type' => 'string',
-                    'nullable' => false,
                 ],
                 'integerParam' => [
                     'name' => 'integerParam',
@@ -276,7 +337,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => true,
                     'example' => 99,
                     'type' => 'integer',
-                    'nullable' => false,
                 ],
                 'booleanParam' => [
                     'name' => 'booleanParam',
@@ -284,7 +344,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => true,
                     'example' => false,
                     'type' => 'boolean',
-                    'nullable' => false,
                 ],
                 'objectParam' => [
                     'name' => 'objectParam',
@@ -292,7 +351,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => false,
                     'example' => [],
                     'type' => 'object',
-                    'nullable' => false,
                 ],
                 'objectParam.field' => [
                     'name' => 'objectParam.field',
@@ -300,7 +358,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => false,
                     'example' => 119.0,
                     'type' => 'number',
-                    'nullable' => false,
                 ],
             ],
         ]);
@@ -334,14 +391,14 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'name' => 'objectArrayParam[].field1',
                     'description' => 'Object array param first field',
                     'required' => true,
-                    'example' => ["hello"],
+                    'example' => ['hello'],
                     'type' => 'string[]',
                 ],
                 'objectArrayParam[].field2' => [
                     'name' => 'objectArrayParam[].field2',
                     'description' => '',
                     'required' => false,
-                    'example' => "hi",
+                    'example' => 'hi',
                     'type' => 'string',
                 ],
             ],
@@ -363,31 +420,26 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                 'description' => 'String param',
                                 'example' => 'hahoho',
                                 'type' => 'string',
-                                'nullable' => false,
                             ],
                             'booleanParam' => [
                                 'description' => 'Boolean param',
                                 'example' => false,
                                 'type' => 'boolean',
-                                'nullable' => false,
                             ],
                             'integerParam' => [
                                 'description' => 'Integer param',
                                 'example' => 99,
                                 'type' => 'integer',
-                                'nullable' => false,
                             ],
                             'objectParam' => [
                                 'description' => 'Object param',
                                 'example' => [],
                                 'type' => 'object',
-                                'nullable' => false,
                                 'properties' => [
                                     'field' => [
                                         'description' => 'Object param field',
                                         'example' => 119.0,
                                         'type' => 'number',
-                                        'nullable' => false,
                                     ],
                                 ],
                             ],
@@ -411,7 +463,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                 'description' => 'File param',
                                 'type' => 'string',
                                 'format' => 'binary',
-                                'nullable' => false,
                             ],
                             'numberArrayParam' => [
                                 'description' => 'Number array param',
@@ -435,13 +486,12 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                 'type' => 'string',
                                             ],
                                             'description' => 'Object array param first field',
-                                            'example' => ["hello"],
+                                            'example' => ['hello'],
                                         ],
                                         'field2' => [
                                             'type' => 'string',
                                             'description' => '',
-                                            'example' => "hi",
-                                            'nullable' => false,
+                                            'example' => 'hi',
                                         ],
                                     ],
                                 ],
@@ -524,12 +574,12 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                 ],
                                 'and this' => [
                                     'description' => 'Parameter description, ha!',
-                                    'example' => "too",
+                                    'example' => 'too',
                                     'type' => 'string',
                                 ],
                                 'also this' => [
                                     'description' => 'This response parameter is required.',
-                                    'example' => "too",
+                                    'example' => 'too',
                                     'type' => 'string',
                                 ],
                                 'sub level 0' => [
@@ -537,7 +587,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'properties' => [
                                         'sub level 1 key 1' => [
                                             'type' => 'string',
-                                            'example' => 'sl0_sl1k1'
+                                            'example' => 'sl0_sl1k1',
                                         ],
                                         'sub level 1 key 2' => [
                                             'type' => 'array',
@@ -545,13 +595,13 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                 [
                                                     'sub level 2 key 1' => 'sl0_sl1k2_sl2k1',
                                                     'sub level 2 key 2' => [
-                                                        'sub level 3 key 1' => 'sl0_sl1k2_sl2k2_sl3k1'
-                                                    ]
-                                                ]
+                                                        'sub level 3 key 1' => 'sl0_sl1k2_sl2k2_sl3k1',
+                                                    ],
+                                                ],
                                             ],
                                             'items' => [
-                                                'type' => 'object'
-                                            ]
+                                                'type' => 'object',
+                                            ],
                                         ],
                                         'sub level 1 key 3' => [
                                             'type' => 'object',
@@ -559,42 +609,41 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                 'sub level 2 key 1' => [
                                                     'type' => 'string',
                                                     'example' => 'sl0_sl1k3_sl2k2',
-                                                    'description' => 'This is a description of a nested object'
+                                                    'description' => 'This is a description of a nested object',
                                                 ],
                                                 'sub level 2 key 2' => [
                                                     'type' => 'object',
                                                     'properties' => [
                                                         'sub level 3 key 1' => [
                                                             'type' => 'string',
-                                                            'example' => 'sl0_sl1k3_sl2k2_sl3k1'
+                                                            'example' => 'sl0_sl1k3_sl2k2_sl3k1',
                                                         ],
                                                         'sub level 3 key null' => [
                                                             'type' => 'string',
-                                                            'example' => null
+                                                            'example' => null,
                                                         ],
                                                         'sub level 3 key integer' => [
                                                             'type' => 'integer',
-                                                            'example' => 99
-                                                        ]
-                                                    ]
+                                                            'example' => 99,
+                                                        ],
+                                                    ],
                                                 ],
                                                 'sub level 2 key 3 required' => [
                                                     'type' => 'string',
                                                     'example' => 'sl0_sl1k3_sl2k3',
-                                                    'description' => 'This is a description of a required nested object'
+                                                    'description' => 'This is a description of a required nested object',
                                                 ],
-
                                             ],
                                             'required' => [
-                                                'sub level 2 key 3 required'
-                                            ]
-                                        ]
-                                    ]
-                                ]
+                                                'sub level 2 key 3 required',
+                                            ],
+                                        ],
+                                    ],
+                                ],
                             ],
                             'required' => [
-                                'also this'
-                            ]
+                                'also this',
+                            ],
                         ],
                     ],
                 ],
@@ -614,6 +663,499 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 ],
             ],
         ], $results['paths']['/path2']['put']['responses']);
+    }
+
+    /** @test */
+    public function applies_required_flag_for_nested_response_fields_with_dot_notation()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/api/resource',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => '',
+                    'content' => json_encode([
+                        'status' => [
+                            'technicalValue' => 'active',
+                            'displayValue' => 'Active',
+                        ],
+                    ]),
+                ],
+            ],
+            'responseFields' => [
+                'status.technicalValue' => [
+                    'name' => 'status.technicalValue',
+                    'type' => 'string',
+                    'description' => 'The technical status value',
+                    'required' => true,
+                ],
+                'status.displayValue' => [
+                    'name' => 'status.displayValue',
+                    'type' => 'string',
+                    'description' => 'The display status value',
+                    'required' => false,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        $statusSchema = $results['paths']['/api/resource']['get']['responses']['200']['content']['application/json']['schema']['properties']['status'];
+
+        $this->assertEquals('object', $statusSchema['type']);
+        $this->assertArrayHasKey('properties', $statusSchema);
+        $this->assertArrayHasKey('technicalValue', $statusSchema['properties']);
+        $this->assertArrayHasKey('displayValue', $statusSchema['properties']);
+        $this->assertArrayHasKey('required', $statusSchema);
+        $this->assertContains('technicalValue', $statusSchema['required']);
+        $this->assertNotContains('displayValue', $statusSchema['required']);
+    }
+
+    /** @test */
+    public function applies_required_flag_for_nested_response_fields_from_api_resources_with_data_prefix()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/api/resource',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => '',
+                    'content' => json_encode([
+                        'data' => [
+                            'status' => [
+                                'technicalValue' => 'active',
+                                'displayValue' => 'Active',
+                            ],
+                        ],
+                    ]),
+                ],
+            ],
+            'responseFields' => [
+                'data.status.technicalValue' => [
+                    'name' => 'data.status.technicalValue',
+                    'type' => 'string',
+                    'description' => 'The technical status value',
+                    'required' => true,
+                ],
+                'data.status.displayValue' => [
+                    'name' => 'data.status.displayValue',
+                    'type' => 'string',
+                    'description' => 'The display status value',
+                    'required' => false,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        // For API Resources, the response is wrapped in 'data', so we need to check data.status
+        $dataSchema = $results['paths']['/api/resource']['get']['responses']['200']['content']['application/json']['schema']['properties']['data'];
+        $statusSchema = $dataSchema['properties']['status'];
+
+        $this->assertEquals('object', $statusSchema['type']);
+        $this->assertArrayHasKey('properties', $statusSchema);
+        $this->assertArrayHasKey('technicalValue', $statusSchema['properties']);
+        $this->assertArrayHasKey('displayValue', $statusSchema['properties']);
+        $this->assertArrayHasKey('required', $statusSchema);
+        $this->assertContains('technicalValue', $statusSchema['required']);
+        $this->assertNotContains('displayValue', $statusSchema['required']);
+    }
+
+    /** @test */
+    public function handles_required_params_correctly_for_nested_arrays()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/api/scribe-test',
+            'metadata' => [
+                'title' => 'Scribe TEST',
+            ],
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => '',
+                    'content' => json_encode([
+                        'data' => [
+                            'outer1' => [
+                                'inner1' => 'string',
+                            ],
+                            'outer2' => [
+                                'inner2' => 'string',
+                            ],
+                        ],
+                    ]),
+                ],
+            ],
+            'responseFields' => [
+                'data.outer1' => [
+                    'name' => 'data.outer1',
+                    'description' => '',
+                    'required' => true,
+                    'type' => 'object',
+                ],
+                'data.outer1.inner1' => [
+                    'name' => 'data.outer1.inner1',
+                    'description' => '',
+                    'required' => true,
+                    'type' => 'string',
+                ],
+                'data.outer2' => [
+                    'name' => 'data.outer2',
+                    'description' => '',
+                    'required' => true,
+                    'type' => 'object',
+                ],
+                'data.outer2.inner2' => [
+                    'name' => 'data.outer2.inner2',
+                    'description' => '',
+                    'required' => true,
+                    'type' => 'string',
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        $dataSchema = $results['paths']['/api/scribe-test']['get']['responses']['200']['content']['application/json']['schema']['properties']['data'];
+
+        // outer1
+        $this->assertEquals('object', $dataSchema['properties']['outer1']['type']);
+        $this->assertContains('outer1', $dataSchema['required']);
+        // outer1.inner1
+        $this->assertEquals('string', $dataSchema['properties']['outer1']['properties']['inner1']['type']);
+        $this->assertContains('inner1', $dataSchema['properties']['outer1']['required']);
+
+        // outer2
+        $this->assertEquals('object', $dataSchema['properties']['outer2']['type']);
+        $this->assertContains('outer2', $dataSchema['required']);
+        // outer2.inner2
+        $this->assertEquals('string', $dataSchema['properties']['outer2']['properties']['inner2']['type']);
+        $this->assertContains('inner2', $dataSchema['properties']['outer2']['required']);
+    }
+
+    /** @test */
+    public function adds_responses_correctly_as_array_of_objects()
+    {
+        $endpointData1 = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/path1',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'Successfully.',
+                    'content' => '[{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]',
+                ],
+            ],
+        ]);
+        $groups = [$this->createGroup([$endpointData1])];
+
+        $results = $this->generate($groups);
+
+        $this->assertCount(1, $results['paths']['/path1']['get']['responses']);
+        $this->assertArraySubset([
+            '200' => [
+                'description' => 'Successfully.',
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'id' => [
+                                        'type' => 'integer',
+                                        'example' => 1,
+                                    ],
+                                    'name' => [
+                                        'type' => 'string',
+                                        'example' => 'John',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path1']['get']['responses']);
+    }
+
+    /** @test */
+    public function adds_required_fields_on_bare_array_of_objects()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/path1',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'Successfully.',
+                    'content' => '[{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]',
+                ],
+            ],
+            'responseFields' => [
+                'id' => [
+                    'name' => 'id',
+                    'type' => 'integer',
+                    'description' => 'The ID',
+                    'required' => true,
+                ],
+                'name' => [
+                    'name' => 'name',
+                    'type' => 'string',
+                    'description' => 'The name',
+                    'required' => true,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        $this->assertArraySubset([
+            '200' => [
+                'description' => 'Successfully.',
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'id' => ['type' => 'integer'],
+                                    'name' => ['type' => 'string'],
+                                ],
+                                'required' => ['id', 'name'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path1']['get']['responses']);
+    }
+
+    /** @test */
+    public function adds_response_content_type_correctly()
+    {
+        $endpointData1 = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/path1',
+            'responses' => [
+                [
+                    'status' => 404,
+                    'description' => 'No Found',
+                    'content' => '{"this": "shouldn\'t be ignored"}',
+                    'headers' => [
+                        'Content-Type' => 'application/problem+json',
+                    ],
+                ],
+            ],
+        ]);
+        $endpointData2 = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/path2',
+            'responses' => [
+                [
+                    'status' => 404,
+                    'description' => 'No Found',
+                    'content' => '{"this": "shouldn\'t be ignored"}',
+                    'headers' => [
+                        'content-type' => 'application/problem+json',
+                    ],
+                ],
+            ],
+        ]);
+        $endpointData3 = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/path3',
+            'responses' => [
+                [
+                    'status' => 404,
+                    'description' => 'No Found',
+                    'content' => '{"this": "shouldn\'t be ignored"}',
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData1, $endpointData2, $endpointData3])];
+        $results = $this->generate($groups);
+
+        $this->assertCount(1, $results['paths']['/path1']['get']['responses']);
+        $this->assertArraySubset([
+            '404' => [
+                'description' => 'No Found',
+                'content' => [
+                    'application/problem+json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'this' => [
+                                    'example' => "shouldn't be ignored",
+                                    'type' => 'string',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path1']['get']['responses']);
+
+        $this->assertCount(1, $results['paths']['/path2']['get']['responses']);
+        $this->assertArraySubset([
+            '404' => [
+                'description' => 'No Found',
+                'content' => [
+                    'application/problem+json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'this' => [
+                                    'example' => "shouldn't be ignored",
+                                    'type' => 'string',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path2']['get']['responses']);
+
+        $this->assertCount(1, $results['paths']['/path3']['get']['responses']);
+        $this->assertArraySubset([
+            '404' => [
+                'description' => 'No Found',
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'this' => [
+                                    'example' => "shouldn't be ignored",
+                                    'type' => 'string',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $results['paths']['/path3']['get']['responses']);
+    }
+
+    /** @test */
+    public function handles_custom_content_type_with_various_response_body_types()
+    {
+        $customJsonType = 'application/vnd.api+json';
+
+        $endpointWithArray = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/array-response',
+            'responses' => [[
+                'status' => 200,
+                'content' => '["foo", "bar"]',
+                'headers' => ['Content-Type' => $customJsonType],
+            ]],
+        ]);
+
+        $endpointWithString = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/string-response',
+            'responses' => [[
+                'status' => 200,
+                'content' => '"a simple string"',
+                'headers' => ['Content-Type' => $customJsonType],
+            ]],
+        ]);
+
+        $endpointWithInteger = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/integer-response',
+            'responses' => [[
+                'status' => 200,
+                'content' => '123',
+                'headers' => ['Content-Type' => $customJsonType],
+            ]],
+        ]);
+
+        $groups = [$this->createGroup([$endpointWithArray, $endpointWithString, $endpointWithInteger])];
+        $results = $this->generate($groups);
+
+        $arrayResponseSpec = $results['paths']['/array-response']['get']['responses']['200'];
+        $this->assertArrayHasKey($customJsonType, $arrayResponseSpec['content']);
+        $this->assertEquals('array', $arrayResponseSpec['content'][$customJsonType]['schema']['type']);
+        $this->assertEquals(['foo', 'bar'], $arrayResponseSpec['content'][$customJsonType]['schema']['example']);
+
+        $stringResponseSpec = $results['paths']['/string-response']['get']['responses']['200'];
+        $this->assertArrayHasKey($customJsonType, $stringResponseSpec['content']);
+        $this->assertEquals('string', $stringResponseSpec['content'][$customJsonType]['schema']['type']);
+        $this->assertEquals('a simple string', $stringResponseSpec['content'][$customJsonType]['schema']['example']);
+
+        $integerResponseSpec = $results['paths']['/integer-response']['get']['responses']['200'];
+        $this->assertArrayHasKey($customJsonType, $integerResponseSpec['content']);
+        $this->assertEquals('integer', $integerResponseSpec['content'][$customJsonType]['schema']['type']);
+        $this->assertEquals(123, $integerResponseSpec['content'][$customJsonType]['schema']['example']);
+    }
+
+    /** @test */
+    public function handles_non_json_response_content_as_text_plain()
+    {
+        $endpoint = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/text-response',
+            'responses' => [[
+                'status' => 200,
+                'content' => 'This is a simple text response.',
+            ]],
+        ]);
+
+        $groups = [$this->createGroup([$endpoint])];
+        $results = $this->generate($groups);
+
+        $responseSpec = $results['paths']['/text-response']['get']['responses']['200'];
+        $this->assertArrayHasKey('text/plain', $responseSpec['content']);
+        $this->assertEquals('string', $responseSpec['content']['text/plain']['schema']['type']);
+        $this->assertEquals('This is a simple text response.', $responseSpec['content']['text/plain']['schema']['example']);
+    }
+
+    /** @test */
+    public function handles_null_and_empty_array_response_content()
+    {
+        $endpointWithNullContent = $this->createMockEndpointData([
+            'uri' => '/null-response',
+            'httpMethods' => ['GET'],
+            'responses' => [[
+                'status' => 200,
+                'content' => null,
+            ]],
+        ]);
+
+        $endpointWithEmptyArray = $this->createMockEndpointData([
+            'uri' => '/empty-array-response',
+            'httpMethods' => ['GET'],
+            'responses' => [[
+                'status' => 200,
+                'content' => '[]',
+            ]],
+        ]);
+
+        $groups = [$this->createGroup([$endpointWithNullContent, $endpointWithEmptyArray])];
+        $results = $this->generate($groups);
+
+        $nullResponseSpec = $results['paths']['/null-response']['get']['responses']['200'];
+        $this->assertArrayHasKey('application/json', $nullResponseSpec['content']);
+        $schemaForNull = $nullResponseSpec['content']['application/json']['schema'];
+        $this->assertEquals('object', $schemaForNull['type']);
+        $this->assertTrue($schemaForNull['nullable']);
+
+        $emptyArrayResponseSpec = $results['paths']['/empty-array-response']['get']['responses']['200'];
+        $this->assertArrayHasKey('application/json', $emptyArrayResponseSpec['content']);
+        $schemaForEmptyArray = $emptyArrayResponseSpec['content']['application/json']['schema'];
+        $this->assertEquals('array', $schemaForEmptyArray['type']);
+        $this->assertEquals(['type' => 'object'], $schemaForEmptyArray['items']); // Scribe defaults items to 'object' for empty arrays
+        $this->assertEquals([], $schemaForEmptyArray['example']);
     }
 
     /** @test */
@@ -687,12 +1229,12 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                 'description' => 'Is primary resource',
                                             ],
                                         ],
+                                        'required' => [
+                                            'name',
+                                            'uuid',
+                                            'primary',
+                                        ],
                                     ],
-                                    'required' => [
-                                        'name',
-                                        'uuid',
-                                        'primary',
-                                    ]
                                 ],
                             ],
                         ],
@@ -752,7 +1294,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
     }
 
     /** @test */
-    public function adds_multiple_responses_correctly_using_oneOf()
+    public function adds_multiple_responses_correctly_using_one_of()
     {
         $endpointData1 = $this->createMockEndpointData([
             'httpMethods' => ['POST'],
@@ -788,7 +1330,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                             'type' => 'object',
                             'properties' => [
                                 'the other' => [
-                                    'example' => "one",
+                                    'example' => 'one',
                                     'type' => 'string',
                                 ],
                             ],
@@ -807,7 +1349,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'description' => 'This one',
                                     'properties' => [
                                         'this' => [
-                                            'example' => "one",
+                                            'example' => 'one',
                                             'type' => 'string',
                                         ],
                                     ],
@@ -817,7 +1359,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'description' => 'No, that one.',
                                     'properties' => [
                                         'that' => [
-                                            'example' => "one",
+                                            'example' => 'one',
                                             'type' => 'string',
                                         ],
                                     ],
@@ -831,7 +1373,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
     }
 
     /** @test */
-    public function adds_more_than_two_answers_correctly_using_oneOf()
+    public function adds_more_than_two_answers_correctly_using_one_of()
     {
         $endpointData1 = $this->createMockEndpointData([
             'httpMethods' => ['POST'],
@@ -872,7 +1414,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                             'type' => 'object',
                             'properties' => [
                                 'the other' => [
-                                    'example' => "one",
+                                    'example' => 'one',
                                     'type' => 'string',
                                 ],
                             ],
@@ -891,7 +1433,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'description' => 'This one',
                                     'properties' => [
                                         'this' => [
-                                            'example' => "one",
+                                            'example' => 'one',
                                             'type' => 'string',
                                         ],
                                     ],
@@ -901,7 +1443,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'description' => 'No, that one.',
                                     'properties' => [
                                         'that' => [
-                                            'example' => "one",
+                                            'example' => 'one',
                                             'type' => 'string',
                                         ],
                                     ],
@@ -911,7 +1453,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'description' => 'No, another one.',
                                     'properties' => [
                                         'another' => [
-                                            'example' => "one",
+                                            'example' => 'one',
                                             'type' => 'string',
                                         ],
                                     ],
@@ -995,12 +1537,12 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                                 'description' => 'Is primary resource',
                                             ],
                                         ],
+                                        'required' => [
+                                            'name',
+                                            'uuid',
+                                            'primary',
+                                        ],
                                     ],
-                                    'required' => [
-                                        'name',
-                                        'uuid',
-                                        'primary',
-                                    ]
                                 ],
                             ],
                         ],
@@ -1008,6 +1550,88 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 ],
             ],
         ], $results['paths']['/path1']['get']['responses']);
+    }
+
+    /** @test */
+    public function does_not_add_empty_enum_arrays_when_response_field_has_no_enum_values()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/test',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'Success response',
+                    'content' => '{"status":"active","message":"Hello world"}',
+                ],
+            ],
+            'responseFields' => [
+                'status' => [
+                    'name' => 'status',
+                    'type' => 'string',
+                    'required' => true,
+                    // enumValues is not set, which means it defaults to an empty array
+                ],
+                'message' => [
+                    'name' => 'message',
+                    'type' => 'string',
+                    'required' => true,
+                    'enumValues' => [], // explicitly empty enum array
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        $responseSchema = $results['paths']['/test']['get']['responses']['200']['content']['application/json']['schema'];
+        $statusProperty = $responseSchema['properties']['status'];
+        $messageProperty = $responseSchema['properties']['message'];
+
+        // Empty enum array should not be added to the schema
+        $this->assertArrayNotHasKey('enum', $statusProperty, 'ResponseField with only required parameter should not have empty enum array');
+        $this->assertArrayNotHasKey('enum', $messageProperty, 'ResponseField with empty enumValues should not have empty enum array in schema');
+
+        // Assert that the required fields are correctly set
+        $this->assertContains('status', $responseSchema['required']);
+        $this->assertContains('message', $responseSchema['required']);
+    }
+
+    /** @test */
+    public function adds_enum_values_to_response_properties_when_specified()
+    {
+        $endpointData = $this->createMockEndpointData([
+            'httpMethods' => ['GET'],
+            'uri' => '/test',
+            'responses' => [
+                [
+                    'status' => 200,
+                    'description' => 'Success response',
+                    'content' => '{"status":"active"}',
+                ],
+            ],
+            'responseFields' => [
+                'status' => [
+                    'name' => 'status',
+                    'type' => 'string',
+                    'required' => true,
+                    'enumValues' => ['active', 'inactive', 'pending'],
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointData])];
+        $results = $this->generate($groups);
+
+        $responseSchema = $results['paths']['/test']['get']['responses']['200']['content']['application/json']['schema'];
+        $statusProperty = $responseSchema['properties']['status'];
+
+        // Correct enum values should be added to the schema
+        $this->assertArrayHasKey('enum', $statusProperty, 'ResponseField with enumValues should have enum array in schema');
+        $this->assertEquals(['active', 'inactive', 'pending'], $statusProperty['enum']);
+
+        // Assert that the required field is correctly set
+        $this->assertContains('status', $responseSchema['required']);
     }
 
     /** @test */
@@ -1023,7 +1647,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => true,
                     'example' => 'abc',
                     'type' => 'string',
-                    'nullable' => false,
                 ],
                 'other_field.nested_field' => [
                     'name' => 'nested_field',
@@ -1031,7 +1654,6 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                     'required' => true,
                     'example' => 'abc',
                     'type' => 'string',
-                    'nullable' => false,
                 ],
             ],
         ]);
@@ -1058,7 +1680,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                                     'required' => ['nested_field'],
                                 ],
                             ],
-                            'required' => ['my_field']
+                            'required' => ['my_field'],
                         ],
                     ],
                 ],
@@ -1072,12 +1694,13 @@ class OpenAPISpecWriterTest extends BaseUnitTest
         $endpointData1 = $this->createMockEndpointData([
             'uri' => '/path',
             'httpMethods' => ['POST'],
-            'custom' => ['permissions' => ['post:view']]
+            'custom' => ['permissions' => ['post:view']],
         ]);
         $groups = [$this->createGroup([$endpointData1])];
         $extraGenerator = TestOpenApiGenerator::class;
         $config = array_merge($this->config, [
             'openapi' => [
+                'version' => '3.0.3',
                 'generators' => [
                     $extraGenerator,
                 ],
@@ -1087,6 +1710,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
 
         $results = $writer->generateSpecContent($groups);
 
+        $this->assertEquals('3.0.3', $results['openapi']);
         $this->assertEquals([['default' => ['post:view']]], $results['paths']['/path']['post']['security']);
     }
 
@@ -1109,6 +1733,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
         $extraGenerator = ComponentsOpenApiGenerator::class;
         $config = array_merge($this->config, [
             'openapi' => [
+                'version' => '3.0.3',
                 'generators' => [
                     $extraGenerator,
                 ],
@@ -1118,9 +1743,10 @@ class OpenAPISpecWriterTest extends BaseUnitTest
 
         $results = $writer->generateSpecContent($groups);
 
+        $this->assertEquals('3.0.3', $results['openapi']);
         $actualParameters = $results['paths']['/{slug}/path']['parameters'];
         $this->assertCount(1, $actualParameters);
-        $this->assertEquals(['$ref' =>  "#/components/parameters/slugParam"], $actualParameters[0]);
+        $this->assertEquals(['$ref' => '#/components/parameters/slugParam'], $actualParameters[0]);
         $this->assertEquals([
             'slugParam' => [
                 'in' => 'path',
@@ -1131,14 +1757,345 @@ class OpenAPISpecWriterTest extends BaseUnitTest
                 'schema' => [
                     'type' => 'string',
                 ],
-            ]
+            ],
         ], $results['components']['parameters']);
+    }
+
+    /** @test */
+    public function uses_openapi31_when_configured()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+        $endpointData = $this->createMockEndpointData();
+        $groups = [$this->createGroup([$endpointData])];
+
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $this->assertEquals('3.1.0', $results['openapi']);
+    }
+
+    /** @test */
+    public function uses_json_schema_nullable_syntax_in_openapi31()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+
+        $endpointWithNullableParam = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'nullable_field' => [
+                    'name' => 'nullable_field',
+                    'type' => 'string',
+                    'required' => false,
+                    'description' => 'A nullable field',
+                    'example' => 'test',
+                    'nullable' => true,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointWithNullableParam])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $requestBodySchema = $results['paths']['/test']['post']['requestBody']['content']['application/json']['schema'];
+        $nullableFieldSchema = $requestBodySchema['properties']['nullable_field'];
+
+        // In OpenAPI 3.1, nullable fields use JSON Schema's type array syntax
+        $this->assertIsArray($nullableFieldSchema['type']);
+        $this->assertContains('string', $nullableFieldSchema['type']);
+        $this->assertContains('null', $nullableFieldSchema['type']);
+        $this->assertArrayNotHasKey('nullable', $nullableFieldSchema);
+    }
+
+    /** @test */
+    public function uses_nullable_property_in_openapi30()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.0.3'],
+        ]);
+
+        $endpointWithNullableParam = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'nullable_field' => [
+                    'name' => 'nullable_field',
+                    'type' => 'string',
+                    'required' => false,
+                    'description' => 'A nullable field',
+                    'example' => 'test',
+                    'nullable' => true,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpointWithNullableParam])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $requestBodySchema = $results['paths']['/test']['post']['requestBody']['content']['application/json']['schema'];
+        $nullableFieldSchema = $requestBodySchema['properties']['nullable_field'];
+
+        // In OpenAPI 3.0, nullable fields use the nullable property
+        $this->assertEquals('string', $nullableFieldSchema['type']);
+        $this->assertTrue($nullableFieldSchema['nullable']);
+    }
+
+    /** @test */
+    public function handles_null_response_content_in_openapi31()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+
+        $endpointWithNullContent = $this->createMockEndpointData([
+            'uri' => '/null-response',
+            'httpMethods' => ['GET'],
+            'responses' => [[
+                'status' => 200,
+                'content' => null,
+            ]],
+        ]);
+
+        $groups = [$this->createGroup([$endpointWithNullContent])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $nullResponseSpec = $results['paths']['/null-response']['get']['responses']['200'];
+        $schemaForNull = $nullResponseSpec['content']['application/json']['schema'];
+
+        // In OpenAPI 3.1, null responses use JSON Schema's type array syntax
+        $this->assertIsArray($schemaForNull['type']);
+        $this->assertContains('object', $schemaForNull['type']);
+        $this->assertContains('null', $schemaForNull['type']);
+        $this->assertArrayNotHasKey('nullable', $schemaForNull);
+    }
+
+    /** @test */
+    public function uses_examples_array_in_openapi_31_for_request_body()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+
+        $endpoint = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'string_field' => [
+                    'name' => 'string_field',
+                    'type' => 'string',
+                    'required' => true,
+                    'description' => 'A string field',
+                    'example' => 'test value',
+                ],
+                'integer_field' => [
+                    'name' => 'integer_field',
+                    'type' => 'integer',
+                    'required' => false,
+                    'description' => 'An integer field',
+                    'example' => 42,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpoint])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $requestBodySchema = $results['paths']['/test']['post']['requestBody']['content']['application/json']['schema'];
+        $stringFieldSchema = $requestBodySchema['properties']['string_field'];
+        $integerFieldSchema = $requestBodySchema['properties']['integer_field'];
+
+        // In OpenAPI 3.1, use examples (plural, as an array) instead of example (singular)
+        $this->assertArrayHasKey('examples', $stringFieldSchema);
+        $this->assertIsArray($stringFieldSchema['examples']);
+        $this->assertEquals(['test value'], $stringFieldSchema['examples']);
+        $this->assertArrayNotHasKey('example', $stringFieldSchema);
+
+        $this->assertArrayHasKey('examples', $integerFieldSchema);
+        $this->assertIsArray($integerFieldSchema['examples']);
+        $this->assertEquals([42], $integerFieldSchema['examples']);
+        $this->assertArrayNotHasKey('example', $integerFieldSchema);
+    }
+
+    /** @test */
+    public function uses_example_in_openapi_30_for_request_body()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.0.3'],
+        ]);
+
+        $endpoint = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'string_field' => [
+                    'name' => 'string_field',
+                    'type' => 'string',
+                    'required' => true,
+                    'description' => 'A string field',
+                    'example' => 'test value',
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpoint])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $requestBodySchema = $results['paths']['/test']['post']['requestBody']['content']['application/json']['schema'];
+        $stringFieldSchema = $requestBodySchema['properties']['string_field'];
+
+        // In OpenAPI 3.0, use example (singular)
+        $this->assertArrayHasKey('example', $stringFieldSchema);
+        $this->assertEquals('test value', $stringFieldSchema['example']);
+        $this->assertArrayNotHasKey('examples', $stringFieldSchema);
+    }
+
+    /** @test */
+    public function uses_examples_array_in_openapi_31_for_response_body()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+
+        $endpoint = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['GET'],
+            'responses' => [[
+                'status' => 200,
+                'description' => 'Success',
+                'content' => '{"message": "Hello", "count": 5}',
+            ]],
+        ]);
+
+        $groups = [$this->createGroup([$endpoint])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $responseSchema = $results['paths']['/test']['get']['responses']['200']['content']['application/json']['schema'];
+        $messageProperty = $responseSchema['properties']['message'];
+        $countProperty = $responseSchema['properties']['count'];
+
+        // In OpenAPI 3.1, use examples (plural, as an array) instead of example (singular)
+        $this->assertArrayHasKey('examples', $messageProperty);
+        $this->assertIsArray($messageProperty['examples']);
+        $this->assertEquals(['Hello'], $messageProperty['examples']);
+        $this->assertArrayNotHasKey('example', $messageProperty);
+
+        $this->assertArrayHasKey('examples', $countProperty);
+        $this->assertIsArray($countProperty['examples']);
+        $this->assertEquals([5], $countProperty['examples']);
+        $this->assertArrayNotHasKey('example', $countProperty);
+    }
+
+    /** @test */
+    public function uses_examples_array_in_openapi_31_for_nested_objects()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+
+        $endpoint = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['POST'],
+            'bodyParameters' => [
+                'user' => [
+                    'name' => 'user',
+                    'type' => 'object',
+                    'required' => true,
+                    'description' => 'User object',
+                    'example' => [],
+                ],
+                'user.name' => [
+                    'name' => 'user.name',
+                    'type' => 'string',
+                    'required' => true,
+                    'description' => 'User name',
+                    'example' => 'John Doe',
+                ],
+                'user.age' => [
+                    'name' => 'user.age',
+                    'type' => 'integer',
+                    'required' => false,
+                    'description' => 'User age',
+                    'example' => 30,
+                ],
+            ],
+        ]);
+
+        $groups = [$this->createGroup([$endpoint])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $requestBodySchema = $results['paths']['/test']['post']['requestBody']['content']['application/json']['schema'];
+        $userSchema = $requestBodySchema['properties']['user'];
+        $nameSchema = $userSchema['properties']['name'];
+        $ageSchema = $userSchema['properties']['age'];
+
+        // In OpenAPI 3.1, nested properties should also use examples
+        $this->assertArrayHasKey('examples', $nameSchema);
+        $this->assertEquals(['John Doe'], $nameSchema['examples']);
+        $this->assertArrayNotHasKey('example', $nameSchema);
+
+        $this->assertArrayHasKey('examples', $ageSchema);
+        $this->assertEquals([30], $ageSchema['examples']);
+        $this->assertArrayNotHasKey('example', $ageSchema);
+    }
+
+    /** @test */
+    public function uses_examples_array_in_openapi_31_for_array_responses()
+    {
+        $config = array_merge($this->config, [
+            'openapi' => ['version' => '3.1.0'],
+        ]);
+
+        $endpoint = $this->createMockEndpointData([
+            'uri' => '/test',
+            'httpMethods' => ['GET'],
+            'responses' => [[
+                'status' => 200,
+                'description' => 'Success',
+                'content' => '[{"id": 1, "name": "Item 1"}, {"id": 2, "name": "Item 2"}]',
+            ]],
+        ]);
+
+        $groups = [$this->createGroup([$endpoint])];
+        $writer = new OpenAPISpecWriter(new DocumentationConfig($config));
+        $results = $writer->generateSpecContent($groups);
+
+        $responseSchema = $results['paths']['/test']['get']['responses']['200']['content']['application/json']['schema'];
+
+        // In OpenAPI 3.1, the array schema should use examples instead of example
+        $this->assertArrayHasKey('examples', $responseSchema);
+        $this->assertArrayNotHasKey('example', $responseSchema);
+
+        // Check that nested properties also use examples
+        $this->assertArrayHasKey('items', $responseSchema);
+        $this->assertArrayHasKey('properties', $responseSchema['items']);
+
+        $idProperty = $responseSchema['items']['properties']['id'];
+        $nameProperty = $responseSchema['items']['properties']['name'];
+
+        $this->assertArrayHasKey('examples', $idProperty);
+        $this->assertEquals([1], $idProperty['examples']);
+        $this->assertArrayNotHasKey('example', $idProperty);
+
+        $this->assertArrayHasKey('examples', $nameProperty);
+        $this->assertEquals(['Item 1'], $nameProperty['examples']);
+        $this->assertArrayNotHasKey('example', $nameProperty);
     }
 
     protected function createMockEndpointData(array $custom = []): OutputEndpointData
     {
         $faker = Factory::create();
-        $path = '/' . $faker->word();
+        $path = '/'.$faker->word();
         $data = [
             'uri' => $path,
             'httpMethods' => $faker->randomElements(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], 1),
@@ -1173,6 +2130,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
     protected function createGroup(array $endpoints)
     {
         $faker = Factory::create();
+
         return [
             'description' => '',
             'name' => $faker->randomElement(['Endpoints', 'Group A', 'Group B']),
@@ -1183,6 +2141,7 @@ class OpenAPISpecWriterTest extends BaseUnitTest
     protected function generate(array $groups): array
     {
         $writer = new OpenAPISpecWriter(new DocumentationConfig($this->config));
+
         return $writer->generateSpecContent($groups);
     }
 }

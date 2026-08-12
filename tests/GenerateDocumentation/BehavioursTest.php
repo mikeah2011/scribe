@@ -1,8 +1,10 @@
-<?php /** @noinspection NonAsciiCharacters */
+<?php
+
+/** @noinspection NonAsciiCharacters */
 
 namespace Knuckles\Scribe\Tests\GenerateDocumentation;
 
-use Illuminate\Support\Facades\File as FileFacade;
+use Illuminate\Database\Eloquent\Factory;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Illuminate\Support\Facades\Storage;
 use Knuckles\Scribe\Commands\GenerateDocumentation;
@@ -17,6 +19,11 @@ use Knuckles\Scribe\Tests\Fixtures\TestUser;
 use Knuckles\Scribe\Tests\TestHelpers;
 use Knuckles\Scribe\Tools\Utils;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class BehavioursTest extends BaseLaravelTest
 {
     use TestHelpers;
@@ -25,7 +32,7 @@ class BehavioursTest extends BaseLaravelTest
     {
         parent::setUp();
 
-        $factory = app(\Illuminate\Database\Eloquent\Factory::class);
+        $factory = app(Factory::class);
         $factory->define(TestUser::class, function () {
             return [
                 'id' => 4,
@@ -36,7 +43,7 @@ class BehavioursTest extends BaseLaravelTest
         });
     }
 
-    public function tearDown(): void
+    protected function tearDown(): void
     {
         Utils::deleteDirectoryAndContents('public/docs');
         Utils::deleteDirectoryAndContents('.scribe');
@@ -49,8 +56,8 @@ class BehavioursTest extends BaseLaravelTest
         RouteFacade::get('/api/array/test', [TestController::class, 'withEndpointDescription']);
 
         $this->generateAndExpectConsoleOutput(expected: [
-            'Processed route: [GET] api/test',
-            'Processed route: [GET] api/array/test'
+            '[GET] api/test',
+            '[GET] api/array/test',
         ]);
     }
 
@@ -58,28 +65,28 @@ class BehavioursTest extends BaseLaravelTest
     public function processes_head_routes_as_head_not_get()
     {
         RouteFacade::addRoute('HEAD', '/api/test', [TestController::class, 'withEndpointDescription']);
-        $this->generateAndExpectConsoleOutput(expected: ['Processed route: [HEAD] api/test']);
+        $this->generateAndExpectConsoleOutput(expected: ['[HEAD] api/test']);
     }
 
     /**
      * @test
+     *
      * @see https://github.com/knuckleswtf/scribe/issues/53
      */
     public function can_process_closure_routes()
     {
-        RouteFacade::get('/api/closure', fn() => 'hi');
-        $this->generateAndExpectConsoleOutput(expected: ['Processed route: [GET] api/closure']);
+        RouteFacade::get('/api/closure', fn () => 'hi');
+        $this->generateAndExpectConsoleOutput(expected: ['[GET] api/closure']);
     }
 
     /** @test */
-    public function calls_afterGenerating_hook_with_correct_paths()
+    public function calls_after_generating_hook_with_correct_paths()
     {
         $paths = [];
         Scribe::afterGenerating(function (array $outputPaths) use (&$paths) {
             $paths = $outputPaths;
         });
         RouteFacade::get('/api/test', [TestController::class, 'withEndpointDescription']);
-
 
         $this->setConfig([
             'type' => 'laravel',
@@ -122,7 +129,7 @@ class BehavioursTest extends BaseLaravelTest
             ],
         ], $paths);
 
-        Scribe::afterGenerating(fn() => null);
+        Scribe::afterGenerating(fn () => null);
     }
 
     /** @test */
@@ -140,20 +147,20 @@ class BehavioursTest extends BaseLaravelTest
 
         $this->assertTrue($commandInstance instanceof GenerateDocumentation);
 
-        Scribe::bootstrap(fn() => null);
+        Scribe::bootstrap(fn () => null);
     }
 
     /** @test */
     public function skips_methods_and_classes_with_hidefromapidocumentation_tag()
     {
         RouteFacade::get('/api/skip', [TestController::class, 'skip']);
-        RouteFacade::get('/api/skipClass', TestIgnoreThisController::class . '@dummy');
+        RouteFacade::get('/api/skipClass', TestIgnoreThisController::class.'@dummy');
         RouteFacade::get('/api/test', [TestController::class, 'withEndpointDescription']);
 
         $this->generateAndExpectConsoleOutput(expected: [
             'Skipping route: [GET] api/skip',
             'Skipping route: [GET] api/skipClass',
-            'Processed route: [GET] api/test'
+            '[GET] api/test',
         ]);
     }
 
@@ -171,12 +178,12 @@ class BehavioursTest extends BaseLaravelTest
 
         $this->generateAndExpectConsoleOutput(
             expected: [
-                'Processed route: [GET] api/users',
-                'Processed route: [POST] api/users'
+                '[GET] api/users',
+                '[POST] api/users',
             ],
             notExpected: [
-                'Processed route: [PUT,PATCH] api/users/{user}',
-                'Processed route: [DELETE] api/users/{user}',]
+                '[PUT|PATCH] api/users/{user}',
+                '[DELETE] api/users/{user}', ]
         );
     }
 
@@ -186,15 +193,15 @@ class BehavioursTest extends BaseLaravelTest
         RouteFacade::resource('/api/users', TestPartialResourceController::class);
 
         $this->generateAndExpectConsoleOutput(expected: [
-            'Processed route: [GET] api/users',
-            'Processed route: [PUT,PATCH] api/users/{user}'
+            '[GET] api/users',
+            '[PUT|PATCH] api/users/{user}',
         ]);
     }
 
     /** @test */
     public function can_customise_static_output_path()
     {
-        RouteFacade::get('/api/action1', TestGroupController::class . '@action1');
+        RouteFacade::get('/api/action1', TestGroupController::class.'@action1');
 
         $this->setConfig(['type' => 'static', 'static.output_path' => 'static/docs']);
         $this->assertFileDoesNotExist('static/docs/index.html');
@@ -212,7 +219,7 @@ class BehavioursTest extends BaseLaravelTest
         RouteFacade::get('/api/test', [TestController::class, 'withEmptyApiResource']);
         $this->generateAndExpectConsoleOutput(expected: [
             "Couldn't detect an Eloquent API resource model",
-            'Processed route: [GET] api/test'
+            '[GET] api/test',
         ]);
     }
 }

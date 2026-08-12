@@ -18,7 +18,7 @@ class GetFromInlineValidatorBase extends Strategy
 
     public function __invoke(ExtractedEndpointData $endpointData, array $routeRules = []): ?array
     {
-        if (!$endpointData->method instanceof \ReflectionMethod) {
+        if (! $endpointData->method instanceof \ReflectionMethod) {
             return [];
         }
 
@@ -26,6 +26,7 @@ class GetFromInlineValidatorBase extends Strategy
         [$validationRules, $customParameterData] = $this->lookForInlineValidationRules($methodAst);
 
         $bodyParametersFromValidationRules = $this->getParametersFromValidationRules($validationRules, $customParameterData);
+
         return $this->normaliseArrayAndObjectParameters($bodyParametersFromValidationRules);
     }
 
@@ -36,8 +37,8 @@ class GetFromInlineValidatorBase extends Strategy
 
         [$index, $validationStatement, $validationRules] = $this->findValidationExpression($statements);
 
-        if ($validationStatement &&
-            !$this->isValidationStatementMeantForThisStrategy($validationStatement)) {
+        if ($validationStatement
+            && ! $this->isValidationStatementMeantForThisStrategy($validationStatement)) {
             return [[], []];
         }
 
@@ -49,15 +50,16 @@ class GetFromInlineValidatorBase extends Strategy
                     $earlierStatement instanceof Node\Stmt\Expression
                     && $earlierStatement->expr instanceof Node\Expr\Assign
                     && $earlierStatement->expr->var instanceof Node\Expr\Variable
-                    && $earlierStatement->expr->var->name == $validationRules->name
+                    && $earlierStatement->expr->var->name === $validationRules->name
                 ) {
                     $validationRules = $earlierStatement->expr->expr;
+
                     break;
                 }
             }
         }
 
-        if (!$validationRules instanceof Node\Expr\Array_) {
+        if (! $validationRules instanceof Node\Expr\Array_) {
             return [[], []];
         }
 
@@ -65,7 +67,7 @@ class GetFromInlineValidatorBase extends Strategy
         $customParameterData = [];
         foreach ($validationRules->items as $item) {
             /** @var Node\ArrayItem $item */
-            if (!$item->key instanceof Node\Scalar\String_) {
+            if (! $item->key instanceof Node\Scalar\String_) {
                 continue;
             }
 
@@ -75,7 +77,7 @@ class GetFromInlineValidatorBase extends Strategy
             // For now, let's focus on simple strings and arrays of strings
             if ($item->value instanceof Node\Scalar\String_) {
                 $rules[$paramName] = $item->value->value;
-            } else if ($item->value instanceof Node\Expr\Array_) {
+            } elseif ($item->value instanceof Node\Expr\Array_) {
                 $rulesList = [];
                 foreach ($item->value->items as $arrayItem) {
                     /** @var Node\ArrayItem $arrayItem */
@@ -83,33 +85,35 @@ class GetFromInlineValidatorBase extends Strategy
                         $rulesList[] = $arrayItem->value->value;
                     }
                     // Try to extract Enum rule
-                    else if (
-                        ($enum = $this->extractEnumClassFromArrayItem($arrayItem)) &&
-                        enum_exists($enum) && method_exists($enum, 'tryFrom')
+                    elseif (
+                        ($enum = $this->extractEnumClassFromArrayItem($arrayItem))
+                        && enum_exists($enum) && method_exists($enum, 'tryFrom')
                     ) {
                         // $case->value only exists on BackedEnums, not UnitEnums
                         // method_exists($enum, 'tryFrom') implies the enum is a BackedEnum
                         // @phpstan-ignore-next-line
-                        $rulesList[] = 'in:' . implode(',', array_map(fn ($case) => $case->value, $enum::cases()));
+                        $rulesList[] = 'in:'.implode(',', array_map(fn ($case) => $case->value, $enum::cases()));
                     }
                 }
-                $rules[$paramName] = join('|', $rulesList);
+                $rules[$paramName] = implode('|', $rulesList);
             } else {
                 $rules[$paramName] = [];
             }
 
             $dataFromComment = [];
-            $comments = join("\n", array_map(
-                    fn($comment) => ltrim(ltrim($comment->getReformattedText(), "/")),
-                    $item->getComments()
-                ));
+            $comments = implode("\n", array_map(
+                fn ($comment) => mb_ltrim(mb_ltrim($comment->getReformattedText(), '/')),
+                $item->getComments()
+            ));
 
             if ($comments) {
-                if (str_contains($comments, 'No-example')) $dataFromComment['example'] = null;
+                if (str_contains($comments, 'No-example')) {
+                    $dataFromComment['example'] = null;
+                }
 
-                $dataFromComment['description'] = trim(str_replace(['No-example.', 'No-example'], '', $comments));
+                $dataFromComment['description'] = mb_trim(str_replace(['No-example.', 'No-example'], '', $comments));
                 if (preg_match('/(.*\s+|^)Example:\s*([\s\S]+)\s*/s', $dataFromComment['description'], $matches)) {
-                    $dataFromComment['description'] = trim($matches[1]);
+                    $dataFromComment['description'] = mb_trim($matches[1]);
                     $dataFromComment['example'] = $matches[2];
                 }
             }
@@ -125,31 +129,41 @@ class GetFromInlineValidatorBase extends Strategy
         $args = [];
 
         // Enum rule with the form "new Enum(...)"
-        if ($arrayItem->value instanceof Node\Expr\New_ &&
-            $arrayItem->value->class instanceof Node\Name &&
-            str_ends_with($arrayItem->value->class->name, 'Enum')
+        if ($arrayItem->value instanceof Node\Expr\New_
+            && $arrayItem->value->class instanceof Node\Name
+            && str_ends_with($arrayItem->value->class->name, 'Enum')
         ) {
             $args = $arrayItem->value->args;
         }
 
         // Enum rule with the form "Rule::enum(...)"
-        else if ($arrayItem->value instanceof Node\Expr\StaticCall &&
-            $arrayItem->value->class instanceof Node\Name &&
-            str_ends_with($arrayItem->value->class->name, 'Rule') &&
-            $arrayItem->value->name instanceof Node\Identifier &&
-            $arrayItem->value->name->name === 'enum'
+        elseif ($arrayItem->value instanceof Node\Expr\StaticCall
+            && $arrayItem->value->class instanceof Node\Name
+            && str_ends_with($arrayItem->value->class->name, 'Rule')
+            && $arrayItem->value->name instanceof Node\Identifier
+            && $arrayItem->value->name->name === 'enum'
         ) {
             $args = $arrayItem->value->args;
         }
 
-        if (count($args) !== 1 || !$args[0] instanceof Node\Arg) return null;
+        if (count($args) !== 1 || ! $args[0] instanceof Node\Arg) {
+            return null;
+        }
 
         $arg = $args[0];
-        if ($arg->value instanceof Node\Expr\ClassConstFetch &&
-            $arg->value->class instanceof Node\Name
+        if ($arg->value instanceof Node\Expr\ClassConstFetch
+            && $arg->value->class instanceof Node\Name
         ) {
-            return '\\' . $arg->value->class->name;
-        } else if ($arg->value instanceof Node\Scalar\String_) {
+            $className = $arg->value->class->getAttribute('resolvedName');
+            // Only prepend '\\' if the class name is already fully qualified (contains '\')
+            // For relative names, return as-is and let enum_exists use autoloading to resolve.
+            if (mb_strpos($className, '\\') !== false) {
+                return '\\'.$className;
+            }
+
+            return $className;
+        }
+        if ($arg->value instanceof Node\Scalar\String_) {
             return $arg->value->value;
         }
 
@@ -158,7 +172,7 @@ class GetFromInlineValidatorBase extends Strategy
 
     protected function getMissingCustomDataMessage($parameterName)
     {
-        return "No extra data found for parameter '$parameterName' from your inline validator. You can add a comment above '$parameterName' with a description and example.";
+        return "No extra data found for parameter '{$parameterName}' from your inline validator. You can add a comment above '{$parameterName}' with a description and example.";
     }
 
     protected function shouldCastUserExample()

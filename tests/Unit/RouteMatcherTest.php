@@ -7,6 +7,11 @@ use Illuminate\Support\Str;
 use Knuckles\Scribe\Matching\RouteMatcher;
 use Knuckles\Scribe\Tests\BaseLaravelTest;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class RouteMatcherTest extends BaseLaravelTest
 {
     /** @test */
@@ -73,7 +78,7 @@ class RouteMatcherTest extends BaseLaravelTest
         $routeRules[0]['match']['domains'] = ['domain1.*'];
         $routeRules[0]['match']['prefixes'] = ['prefix1/*'];
         $routes = $this->matchRoutes($routeRules);
-        $oddRuleOut = collect($routes)->filter(fn($route) => $route['route']->getName() === $mustInclude);
+        $oddRuleOut = collect($routes)->filter(fn ($route) => $route['route']->getName() === $mustInclude);
         $this->assertCount(1, $oddRuleOut);
     }
 
@@ -88,7 +93,7 @@ class RouteMatcherTest extends BaseLaravelTest
         $routeRules[0]['match']['domains'] = ['domain1.*'];
         $routeRules[0]['match']['prefixes'] = ['prefix1/*'];
         $routes = $this->matchRoutes($routeRules);
-        $oddRuleOut = collect($routes)->filter(fn($route) => in_array($route['route']->getName(), $mustInclude));
+        $oddRuleOut = collect($routes)->filter(fn ($route) => in_array($route['route']->getName(), $mustInclude));
         $this->assertCount(count($mustInclude), $oddRuleOut);
     }
 
@@ -102,7 +107,7 @@ class RouteMatcherTest extends BaseLaravelTest
         $routeRules[0]['match']['domains'] = ['domain1.*'];
         $routeRules[0]['match']['prefixes'] = ['prefix1/*'];
         $routes = $this->matchRoutes($routeRules);
-        $oddRuleOut = collect($routes)->filter(fn($route) => $route['route']->getName() === $mustNotInclude);
+        $oddRuleOut = collect($routes)->filter(fn ($route) => $route['route']->getName() === $mustNotInclude);
         $this->assertCount(0, $oddRuleOut);
     }
 
@@ -117,7 +122,7 @@ class RouteMatcherTest extends BaseLaravelTest
         $routeRules[0]['match']['domains'] = ['domain1.*'];
         $routeRules[0]['match']['prefixes'] = ['prefix1/*'];
         $routes = $this->matchRoutes($routeRules);
-        $oddRuleOut = collect($routes)->filter(fn($route) => in_array($route['route']->getName(), $mustNotInclude));
+        $oddRuleOut = collect($routes)->filter(fn ($route) => in_array($route['route']->getName(), $mustNotInclude));
         $this->assertCount(0, $oddRuleOut);
     }
 
@@ -155,6 +160,13 @@ class RouteMatcherTest extends BaseLaravelTest
                 && Str::is('domain2.*', $route['route']->getDomain());
         });
         $this->assertCount(2, $secondRuleGroup);
+    }
+
+    protected function matchRoutes(array $routeRules): array
+    {
+        $matcher = new RouteMatcher;
+
+        return $matcher->getRoutes($routeRules);
     }
 
     private function registerLaravelRoutes()
@@ -199,11 +211,5 @@ class RouteMatcherTest extends BaseLaravelTest
                 return 'hi';
             })->name('prefix2.domain2-2');
         });
-    }
-
-    protected function matchRoutes(array $routeRules): array
-    {
-        $matcher = new RouteMatcher();
-        return $matcher->getRoutes($routeRules);
     }
 }

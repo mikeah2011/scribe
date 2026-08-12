@@ -14,7 +14,7 @@ class ResponseCollection extends BaseDTOCollection
     public function hasSuccessResponse(): bool
     {
         return $this->first(
-                fn($response) => strval($response->status)[0] == '2'
-            ) !== null;
+            fn ($response) => '2' === ((string) ($response->status))[0]
+        ) !== null;
     }
 }

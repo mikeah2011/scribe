@@ -2,6 +2,8 @@
 
 namespace Knuckles\Scribe\Tests\Strategies;
 
+use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
+use Illuminate\Contracts\Validation\Rule;
 use Illuminate\Routing\Route;
 use Knuckles\Scribe\Extracting\Strategies\BodyParameters;
 use Knuckles\Scribe\Extracting\Strategies\QueryParameters;
@@ -10,10 +12,14 @@ use Knuckles\Scribe\Tests\Fixtures\TestController;
 use Knuckles\Scribe\Tests\Fixtures\TestRequest;
 use Knuckles\Scribe\Tests\Fixtures\TestRequestQueryParams;
 use Knuckles\Scribe\Tools\DocumentationConfig;
-use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
 use Knuckles\Scribe\Tools\Globals;
 use PHPUnit\Framework\Assert;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class GetFromFormRequestTest extends BaseLaravelTest
 {
     use ArraySubsetAsserts;
@@ -232,6 +238,7 @@ class GetFromFormRequestTest extends BaseLaravelTest
         Globals::$__instantiateFormRequestUsing = function (string $className, Route $route, string $method) use (&$controllerMethod) {
             Assert::assertEquals(TestRequest::class, $className);
             Assert::assertEquals($controllerMethod, $method);
+
             return new TestRequestQueryParams;
         };
 
@@ -264,19 +271,21 @@ class GetFromFormRequestTest extends BaseLaravelTest
     protected function fetchViaBodyParams(\ReflectionMethod $method): array
     {
         $strategy = new BodyParameters\GetFromFormRequest(new DocumentationConfig([]));
-        $route = new Route(['POST'], "/test", ['uses' => [TestController::class, 'dummy']]);
+        $route = new Route(['POST'], '/test', ['uses' => [TestController::class, 'dummy']]);
+
         return $strategy->getParametersFromFormRequest($method, $route);
     }
 
     protected function fetchViaQueryParams(\ReflectionMethod $method): array
     {
         $strategy = new QueryParameters\GetFromFormRequest(new DocumentationConfig([]));
-        $route = new Route(['POST'], "/test", ['uses' => [TestController::class, 'dummy']]);
+        $route = new Route(['POST'], '/test', ['uses' => [TestController::class, 'dummy']]);
+
         return $strategy->getParametersFromFormRequest($method, $route);
     }
 }
 
-class DummyValidationRule implements \Illuminate\Contracts\Validation\Rule
+class DummyValidationRule implements Rule
 {
     public function passes($attribute, $value)
     {

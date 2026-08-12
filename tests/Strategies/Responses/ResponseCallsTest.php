@@ -3,6 +3,7 @@
 namespace Knuckles\Scribe\Tests\Strategies\Responses;
 
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Route as LaravelRouteFacade;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Knuckles\Camel\Extraction\ExtractedEndpointData;
 use Knuckles\Camel\Extraction\ResponseCollection;
@@ -12,9 +13,13 @@ use Knuckles\Scribe\Scribe;
 use Knuckles\Scribe\Tests\BaseLaravelTest;
 use Knuckles\Scribe\Tests\Fixtures\TestController;
 use Knuckles\Scribe\Tools\DocumentationConfig;
-use Illuminate\Support\Facades\Route as LaravelRouteFacade;
 use Symfony\Component\HttpFoundation\Request;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class ResponseCallsTest extends BaseLaravelTest
 {
     /** @test */
@@ -49,18 +54,18 @@ class ResponseCallsTest extends BaseLaravelTest
         $this->setConfig([
             'strategies.responses' => [
                 [ResponseCalls::class,
-                    ['only' => 'POST *']
+                    ['only' => 'POST *'],
                 ],
-            ]
+            ],
         ]);
-        $parsed = (new Extractor())->processRoute($route);
+        $parsed = (new Extractor)->processRoute($route);
         $responses = $parsed->responses->toArray();
 
         $this->assertCount(1, $responses);
         $this->assertArraySubset([
-            "status" => 200,
-            "description" => null,
-            "content" => '{"filename":"scribe.php","filepath":"config","name":"cat.jpg"}',
+            'status' => 200,
+            'description' => null,
+            'content' => '{"filename":"scribe.php","filepath":"config","name":"cat.jpg"}',
         ], $responses[0]);
     }
 
@@ -108,20 +113,20 @@ class ResponseCallsTest extends BaseLaravelTest
             'config' => [
                 'app.env' => $now,
             ],
-        ],);
+        ], );
         $newValue = json_decode($responses[0]['content'], true)['app.env'];
         $this->assertEquals($now, $newValue);
         $this->assertNotEquals($originalValue, $newValue);
     }
 
     /** @test */
-    public function calls_beforeResponseCall_hook()
+    public function calls_before_response_call_hook()
     {
         Scribe::beforeResponseCall(function (Request $request, ExtractedEndpointData $endpointData) {
-            $request->headers->set("header", "overridden_".$request->headers->get("header"));
-            $request->headers->set("Authorization", "overridden_".$request->headers->get("Authorization"));
-            $request->query->set("queryParam", "overridden_".$request->query->get("queryParam"));
-            $request->request->set("bodyParam", "overridden_".$endpointData->uri.$request->request->get("bodyParam"));
+            $request->headers->set('header', 'overridden_'.$request->headers->get('header'));
+            $request->headers->set('Authorization', 'overridden_'.$request->headers->get('Authorization'));
+            $request->query->set('queryParam', 'overridden_'.$request->query->get('queryParam'));
+            $request->request->set('bodyParam', 'overridden_'.$endpointData->uri.$request->request->get('bodyParam'));
         });
 
         $route = LaravelRouteFacade::post('/echo/{id}', [TestController::class, 'echoesRequestValues']);
@@ -151,7 +156,7 @@ class ResponseCallsTest extends BaseLaravelTest
         $this->assertEquals('overridden_Bearer bearerToken', $responseContent['auth']);
         $this->assertEquals('overridden_echo/{id}bodyValue', $responseContent['bodyParam']);
 
-        Scribe::beforeResponseCall(fn() => null);
+        Scribe::beforeResponseCall(fn () => null);
     }
 
     /** @test */
@@ -185,7 +190,7 @@ class ResponseCallsTest extends BaseLaravelTest
             'items' => [
                 'one',
                 'two',
-            ]
+            ],
         ], json_decode($responses[0]['content'], true));
     }
 
@@ -197,8 +202,10 @@ class ResponseCallsTest extends BaseLaravelTest
     protected function invokeStrategy(ExtractedEndpointData|Route $route, $settings = []): ?array
     {
         $strategy = new ResponseCalls(new DocumentationConfig([]));
+
         return $strategy(
-            $route instanceof ExtractedEndpointData ? $route : ExtractedEndpointData::fromRoute($route), $settings
+            $route instanceof ExtractedEndpointData ? $route : ExtractedEndpointData::fromRoute($route),
+            $settings
         );
     }
 }

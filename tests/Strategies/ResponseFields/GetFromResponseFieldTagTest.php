@@ -2,15 +2,19 @@
 
 namespace Knuckles\Scribe\Tests\Strategies\ResponseFields;
 
-use Closure;
+use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
 use Knuckles\Camel\Extraction\ExtractedEndpointData;
 use Knuckles\Camel\Extraction\ResponseCollection;
 use Knuckles\Scribe\Extracting\Strategies\ResponseFields\GetFromResponseFieldTag;
 use Knuckles\Scribe\Tools\DocumentationConfig;
 use Mpociot\Reflection\DocBlock\Tag;
 use PHPUnit\Framework\TestCase;
-use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
 
+/**
+ * @internal
+ *
+ * @coversNothing
+ */
 class GetFromResponseFieldTagTest extends TestCase
 {
     use ArraySubsetAsserts;
@@ -37,7 +41,7 @@ class GetFromResponseFieldTagTest extends TestCase
     }
 
     /** @test */
-    public function can_infer_type_from_first_2xx_response()
+    public function can_infer_type_from_first2xx_response()
     {
         $responses = [
             [
@@ -70,7 +74,7 @@ class GetFromResponseFieldTagTest extends TestCase
     }
 
     /** @test */
-    public function can_infer_type_from_first_2xx_response_for_lists()
+    public function can_infer_type_from_first2xx_response_for_lists()
     {
         $responses = [
             [
@@ -110,21 +114,43 @@ class GetFromResponseFieldTagTest extends TestCase
         ], $results);
     }
 
+    /** @test */
+    public function applies_wrap_key_prefix_to_api_resource_fields()
+    {
+        $tags = [
+            new Tag('apiResource', '\Knuckles\Scribe\Tests\Fixtures\TestNestedOuterResourceWithTags'),
+        ];
+        $results = $this->fetch($tags);
+
+        $this->assertArrayHasKey('data.outer1', $results);
+        $this->assertArrayHasKey('data.outer1.inner1', $results);
+        $this->assertArrayHasKey('data.outer2', $results);
+        $this->assertArrayHasKey('data.outer2.inner2', $results);
+
+        $this->assertTrue($results['data.outer1']['required']);
+        $this->assertTrue($results['data.outer1.inner1']['required']);
+        $this->assertTrue($results['data.outer2']['required']);
+        $this->assertTrue($results['data.outer2.inner2']['required']);
+    }
+
     protected function fetch($tags, $endpoint = null): array
     {
         $strategy = new GetFromResponseFieldTag(new DocumentationConfig([]));
         $strategy->endpointData = $endpoint ?: $this->endpoint(function (ExtractedEndpointData $e) {
             $e->responses = new ResponseCollection([]);
         });
+
         return $strategy->getFromTags($tags);
     }
 
-    protected function endpoint(Closure $configure): ExtractedEndpointData
+    protected function endpoint(\Closure $configure): ExtractedEndpointData
     {
-        $endpoint = new class extends ExtractedEndpointData {
+        $endpoint = new class extends ExtractedEndpointData
+        {
             public function __construct(array $parameters = []) {}
         };
         $configure($endpoint);
+
         return $endpoint;
     }
 }
